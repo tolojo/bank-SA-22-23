@@ -3,6 +3,7 @@ import os
 import argparse
 import sys
 
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from flask import Flask, request
 
 app = Flask(__name__)
@@ -10,8 +11,9 @@ clients = []
 
 
 class Client:
-    def __init__(self, idCartao, saldo, vCard=0, vCardSaldo=0):
-        self.idCartao = idCartao
+    def __init__(self, conta, pin, saldo, vCard=0, vCardSaldo=0):
+        self.conta = conta
+        self.pin = pin
         self.saldo = saldo
         self.vCard = vCard
         self.vCardSaldo = vCardSaldo
@@ -42,23 +44,30 @@ def signal_handler(sig, frame):
 
 
 
-@app.route('/account/<idcartao>', methods=['GET'])  # Login do user
-def getUser(idcartao):
+@app.route('/account/<conta>', methods=['GET'])  # Login do user
+def getUser(conta):
     for clientAux in clients:
-        if clientAux.idCartao == idcartao:
+        if clientAux.conta == conta:
             return "saldo:"+clientAux.saldo, 200
     return "Not found", 404
 
 
 @app.route('/account', methods=['POST'])  # Login do user
 def regUser():
-    data = json.dumps(request.get_json())
-    data = json.loads(data)
+    data = request.data
+    with open("bank.auth", 'rb') as f:
+        key = f.read()
+    cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(key[32:]))
+    decryptor = cipher.decryptor()
+    data = decryptor.update(data).decode("utf8")
     print(data)
-    client = Client(idCartao=data['idcartao'], saldo=data['saldo'])
-    print(client.idCartao)
-    clients.append(client)
-    print(clients)
+    conta = data.split(", ")[0].split(": ")[1]
+    pin = data.split(", ")[1].split(": ")[1].encode("latin1")
+    saldo = data.split(", ")[2].split(": ")[1]
+    print(conta)
+    print(pin)
+    print(saldo)
+    clients.append(Client(conta,pin,saldo))
     return "Cliente criado com sucesso", 200
 
 

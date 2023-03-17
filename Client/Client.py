@@ -3,6 +3,10 @@ import os
 import argparse
 import sys
 
+import requests
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives.ciphers.algorithms import AES
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Client')
@@ -25,6 +29,19 @@ def signal_handler(sig, frame):
 
 if __name__ == "__main__":
     args = parse_args()
-    print(
-        args
-    )
+    print(args)
+    if args.u is not None and args.a is not None and args.n is not None:
+
+        pin = os.urandom(16)  # Pin de 128 bits, para ser usado como IV para encriptação de comunicação cliente banco para criar um vcc
+        with open(str(args.u)+".user", 'wb') as f:
+            f.write(pin)
+        data="conta: "+str(args.u)+", pin: "+pin.decode("latin1")+", saldo: "+str(args.n)+ "                                     "
+        print(data)
+        key=""
+        with open("bank.auth", 'rb') as f:
+            key = f.read()
+        cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(key[32:]))
+        encryptor = cipher.encryptor()
+        ct = encryptor.update(data.encode("utf8"))
+        response = requests.post(url=f"http://{args.i}:{args.p}/account", data=ct)
+
