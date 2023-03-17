@@ -1,33 +1,45 @@
-import os, json
+import json
+import os
+import argparse
+import sys
 
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request
 
 app = Flask(__name__)
 clients = []
 
 
 class Client:
-
-    def __init__(self, idCartao, saldo, vCard = 0, vCardSaldo = 0):
+    def __init__(self, idCartao, saldo, vCard=0, vCardSaldo=0):
         self.idCartao = idCartao
         self.saldo = saldo
         self.vCard = vCard
         self.vCardSaldo = vCardSaldo
 
-    def getSaldo(myobject):
-        return myobject.saldo
+    def getSaldo(self):
+        return self.saldo
 
 
-def genServerKeys():
+def genServerKeys(filePath):
     key = os.urandom(32) #key de 256 bits
     print(key)
     iv = os.urandom(16)  #IV de 128 bits
     print(iv)
-    cipher = Cipher(algorithms.AES(key), modes.CBC(iv))
     kIv = key + iv
-    with open('bank.auth', 'wb') as f:
+    with open(filePath, 'wb') as f:
         f.write(kIv)
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description='Bank')
+    parser.add_argument('-p', metavar='bk-port', type=int, default=3000, help='The port that bank will listen on. Defaults to 3000.')
+    parser.add_argument('-s', metavar='auth-file', type=str, default='bank.auth', help='Name of the auth file. Defaults to bank.auth')
+    return parser.parse_args()
+
+def signal_handler(sig, frame):
+    print("SIGTERM received. Exiting cleanly...")
+    sys.exit(0)
+
 
 
 @app.route('/account/<idcartao>', methods=['GET'])  # Login do user
@@ -52,6 +64,9 @@ def regUser():
 
 @app.route('/createCard', methods=['POST'])  # Login do user
 def regCard():
+    data = json.dumps(request.get_json())
+    data = json.loads(data)
+    print(data)
     return
 
 
@@ -61,7 +76,8 @@ def buyProd():
 
 
 if __name__ == "__main__":
-    genServerKeys()
-    app.run(host="0.0.0.0", port=3000)
+    args = parse_args()
+    genServerKeys(args.s)
+    app.run(host="0.0.0.0", port=args.p)
 
 
