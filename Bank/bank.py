@@ -94,13 +94,15 @@ def regUser():
     cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(key[32:]))
     decryptor = cipher.decryptor()
     data = decryptor.update(data).decode("utf8")
-    print(data)
     conta = data.split(", ")[0].split(": ")[1]
     pin = data.split(", ")[1].split(": ")[1].encode("latin1")
-    saldo = data.split(", ")[2].split(": ")[1]
-    print(conta)
-    print(pin)
-    print(saldo)
+    saldo = float(data.split(", ")[2].split(": ")[1])
+    user = {
+        "conta": conta,
+        "pin": pin,
+        "saldo": saldo
+    }
+    print(user)
     clients.append(Client(conta, pin, saldo))
     return "Cliente criado com sucesso", 200
 
@@ -121,9 +123,9 @@ def deposit():
 @app.route('/account/createCard', methods=['POST'])
 def regCard():
     data = request.get_json()
-    conta = data.get("conta")
-    amount = data.get("amount")
-
+    conta = data.get("account")
+    amount = data.get("vcc")
+    print(data)
     for clientAux in clients:
         if clientAux.conta == conta:
             vCard = clientAux.create_vcard(amount)
