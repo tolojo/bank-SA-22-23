@@ -17,11 +17,12 @@ class Client:
     # saldo: The balance of the account
     # vCard: The virtual card number
     # vCardSaldo: The balance of the virtual card
-    def __init__(self, conta, pin, saldo, vCard=0, vCardSaldo=0):
+    def __init__(self, conta, pin, saldo, vCard=0,vCard_pin = 0, vCardSaldo=0):
         self.conta = conta
         self.pin = pin
         self.saldo = saldo
         self.vCard = vCard
+        self.vCard_pin = vCard_pin
         self.vCardSaldo = vCardSaldo
 
     # This function returns the amount of money on the account
@@ -35,11 +36,13 @@ class Client:
     # This function creates a virtual card
     # amount: The amount of money that you want to create a virtual card with
     # return: The virtual card number
-    def create_vcard(self, amount):
-        if self.saldo >= amount: # Podemos introduzir uma vulnerabilidade aqui
+    def create_vcard(self, amount, vCard_pin):
+        amount=float(amount)
+        if self.saldo >= amount:
             self.saldo -= amount
             self.vCardSaldo += amount
             self.vCard = os.urandom(16)
+            self.vCard_pin = vCard_pin
             return self.vCard
         else:
             return None
@@ -120,15 +123,28 @@ def deposit():
     return "Not found", 404
 
 # Create virtual card
-@app.route('/account/createCard', methods=['POST'])
-def regCard():
-    data = request.get_json()
+@app.route('/account/createCard/<conta_id>', methods=['POST'])
+def regCard(conta_id):
+    data = request.get_data()
+    iv = 0
+    with open("bank.auth", 'rb') as f:
+        key = f.read()
+    for clientAux in clients:
+        if clientAux.conta == conta_id+".user":
+            iv = clientAux.pin
+    cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(iv))
+    decryptor = cipher.decryptor()
+    data = decryptor.update(data).decode("utf8")
+
+    print(data)
+    data = eval(data)
     conta = data.get("account")
     amount = data.get("vcc")
+    vcc_pin = data.get("vcc_pin").encode("latin1")
     print(data)
     for clientAux in clients:
         if clientAux.conta == conta:
-            vCard = clientAux.create_vcard(amount)
+            vCard = clientAux.create_vcard(amount, vcc_pin)
             if vCard:
                 return jsonify({"vCard": vCard.hex()}), 200
             else:

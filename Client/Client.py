@@ -6,6 +6,8 @@ import sys
 import requests
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives.ciphers.algorithms import AES
+global seqNumber
+seqNumber = 0
 
 
 def parse_args():
@@ -44,10 +46,24 @@ def deposit(ip, port, account, deposit_amount):
 
 
 def create_vcc(ip, port, account, vcc_amount):
-    payload = {'account': str(account)+".user", 'vcc': vcc_amount}
-    response = requests.post(url=f"http://{ip}:{port}/account/createCard", json=payload)
+    global seqNumber
+    vcc_pin = os.urandom(16)  # IV de 128 bits
+    user = str(account)+".user"
+    payload = '{"account": "'+user+'","vcc_pin":"'+vcc_pin.decode('latin1')+'", "vcc": "'+str(vcc_amount)+'"}                  '
+    with open("bank.auth", 'rb') as f:
+        key = f.read()
+    with open(str(account)+".user", 'rb') as f:
+        iv = f.read()
+    cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(iv))
+    encryptor = cipher.encryptor()
+    data = encryptor.update(payload.encode('utf8'))
+    response = requests.post(url=f"http://{ip}:{port}/account/createCard/"+str(account), data=data)
     if response.status_code == 200:
-        print(response.text)
+        with open(str(account)+"_"+str(seqNumber)+".card", 'wb') as f:
+            f.write(vcc_pin)
+        print(payload)
+        seqNumber+=1
+
     else:
         print("Error creating virtual card")
 
