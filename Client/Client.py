@@ -1,7 +1,9 @@
+import hashlib
 import json
 import os
 import argparse
 import sys
+import hmac
 
 import requests
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
@@ -16,12 +18,12 @@ def parse_args():
     parser.add_argument('-p', metavar='bk-port', type=int, default=3000, help='The port that bank will listen on. Defaults to 3000.')
     parser.add_argument('-s', metavar='auth-file', type=str, default='bank.auth', help='Name of the auth file. Defaults to bank.auth')
     parser.add_argument('-u', metavar='user-file', type=str, default = None, help='The customer user file. The default value is the account name prepended to .user')
-    parser.add_argument('-a', metavar='account', type=int, help='The account that you want to do operations.')
+    parser.add_argument('-a', metavar='account', type=str, help='The account that you want to do operations.')
     parser.add_argument('-n', metavar='balance', type=float, help='The balance of the account that you want to create')
     parser.add_argument('-d', metavar='deposit', type=int, help='The amount you want to deposit on the account')
     parser.add_argument('-c', metavar='vcc', type=float, help='The amount of money that you want to create a virtual card with')
     parser.add_argument('-g', metavar='balance', type=int, help='Get the balance of a certain account')
-    parser.add_argument('-m', metavar='purchase', type=int, help='Withdraw the amount of money specified from the virtual credit card and the bank account')
+    parser.add_argument('-m', metavar='purchase', type=float, help='Withdraw the amount of money specified from the virtual credit card and the bank account')
     return parser.parse_args()
 
 def signal_handler(sig, frame):
@@ -45,9 +47,37 @@ def deposit(ip, port, account, deposit_amount):
     else:
         print("Error depositing money")
 
-def buy_product(ip, port, account, amount_used):
-    payload = {'account': account, 'vcc_amount_used': amount_used}
-    response = requests.post(url=f"http://{ip}:{port}/buy", json=payload)
+def buy_product(account, amount_used):
+    #payload = {'account': account, 'vcc_amount_used': amount_used}
+    user = "account: "+account
+    amount_used = (str(amount_used)+"                       ").encode("utf8")
+
+    with open("bank.auth", 'rb') as f:
+        key = f.read()
+    with open(account, 'rb') as f:
+        iv = f.read()
+
+    cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(iv))
+    encryptor = cipher.encryptor()
+    user = encryptor.update(user.encode("utf8"))
+    #erro no amount
+    with open("bank.auth", 'rb') as f:
+        key = f.read()
+
+    cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(key[32:]))
+    encryptor = cipher.encryptor()
+
+    amount = encryptor.update(amount_used)
+    print(amount)
+
+    payload = (user.decode("latin1")+"|"+amount.decode("latin1")).encode("latin1")
+    # Encrypt account with vcc iv and amount with .auth iv
+    h =  hmac.new(key[:32],payload,hashlib.sha3_256).hexdigest()
+    headers = {
+        "Authorization": f"{h}"
+    }
+    response = requests.post(url=f"http://127.0.0.1:5000/buy",headers=headers, data=payload)
+
     if response.status_code == 200:
         print(response.text)
     else:
@@ -56,18 +86,18 @@ def buy_product(ip, port, account, amount_used):
 def create_vcc(ip, port, account, vcc_amount):
     global seqNumber
     vcc_pin = os.urandom(16)  # IV de 128 bits
-    user = str(account)+".user"
+    user = account+".user"
     payload = '{"account": "'+user+'","vcc_pin":"'+vcc_pin.decode('latin1')+'", "vcc": "'+str(vcc_amount)+'"}                  '
     with open("bank.auth", 'rb') as f:
         key = f.read()
-    with open(str(account)+".user", 'rb') as f:
+    with open(account+".user", 'rb') as f:
         iv = f.read()
     cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(iv))
     encryptor = cipher.encryptor()
     data = encryptor.update(payload.encode('utf8'))
-    response = requests.post(url=f"http://{ip}:{port}/account/createCard/"+str(account), data=data)
+    response = requests.post(url=f"http://{ip}:{port}/account/createCard/"+account, data=data)
     if response.status_code == 200:
-        with open(str(account)+"_"+str(seqNumber)+".card", 'wb') as f:
+        with open(account+"_"+str(seqNumber)+".card", 'wb') as f:
             f.write(vcc_pin)
         print(payload)
         seqNumber+=1
@@ -79,7 +109,7 @@ def create_vcc(ip, port, account, vcc_amount):
 
 if __name__ == "__main__":
     args = parse_args()
-    print(args)
+
     if args.u is None and args.a is not None: # If the user file is not specified, use the account name prepended to .user
         args.u = f"{args.a}.user"
 
@@ -108,5 +138,5 @@ if __name__ == "__main__":
         create_vcc(args.i, args.p, args.a, args.c)
 
     if args.m is not None and args.a is not None:
-        buy_product(args.i, args.p, args.a, args.m)
+        buy_product(args.a, args.m)
 
