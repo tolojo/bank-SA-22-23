@@ -154,7 +154,7 @@ def regCard(conta_id):
 
 # Buy product
 @app.route('/account/buyproduct', methods=['POST'])
-def buyProd():
+def buy_product():
     data = request.get_json()
     conta = data.get("conta")
     amount = data.get("amount")

@@ -21,6 +21,7 @@ def parse_args():
     parser.add_argument('-d', metavar='deposit', type=int, help='The amount you want to deposit on the account')
     parser.add_argument('-c', metavar='vcc', type=float, help='The amount of money that you want to create a virtual card with')
     parser.add_argument('-g', metavar='balance', type=int, help='Get the balance of a certain account')
+    parser.add_argument('-m', metavar='purchase', type=int, help='Withdraw the amount of money specified from the virtual credit card and the bank account')
     return parser.parse_args()
 
 def signal_handler(sig, frame):
@@ -44,6 +45,13 @@ def deposit(ip, port, account, deposit_amount):
     else:
         print("Error depositing money")
 
+def buy_product(ip, port, account, amount_used):
+    payload = {'account': account, 'vcc_amount_used': amount_used}
+    response = requests.post(url=f"http://{ip}:{port}/buy", json=payload)
+    if response.status_code == 200:
+        print(response.text)
+    else:
+        print("Invalid transaction")
 
 def create_vcc(ip, port, account, vcc_amount):
     global seqNumber
@@ -98,4 +106,7 @@ if __name__ == "__main__":
 
     if args.c is not None and args.a is not None:
         create_vcc(args.i, args.p, args.a, args.c)
+
+    if args.m is not None and args.a is not None:
+        buy_product(args.i, args.p, args.a, args.m)
 
