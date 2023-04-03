@@ -56,15 +56,41 @@ def get_account_balance(ip, port, account):
 
 
 def deposit(ip, port, account, deposit_amount):
-    payload = {'account': account, 'deposit': deposit_amount}
-    response = requests.post(url=f"http://{ip}:{port}/account/deposit", json=payload, timeout=10)
+    user = "account: " + account
+
+    with open("bank.auth", 'rb') as f:
+        key = f.read()
+    with open(account, 'rb') as f:
+        iv = f.read()
+
+    cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(iv))
+    encryptor = cipher.encryptor()
+    user = encryptor.update(user.encode("utf8"))
+
+    with open("bank.auth", 'rb') as f:
+        key = f.read()
+
+    cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(key[32:]))
+    encryptor = cipher.encryptor()
+
+    amount = encryptor.update(deposit_amount)
+
+    payload = (user.decode("latin1") + "|" + amount.decode("latin1")).encode("latin1")
+    #payload = {'account': account, 'deposit': deposit_amount}
+    h =  hmac.new(key[:32],payload,hashlib.sha3_256).hexdigest()
+    account=account+"                                            "
+    user = account.split("_")[0]
+    headers = {
+        "Authorization": f"{h}",
+        "User": f"{user}.user"
+    }
+    response = requests.post(url=f"http://{ip}:{port}/account/deposit",headers=headers, json=payload, timeout=10)
     if response.status_code == 200:
         print(response.text)
     else:
         print("Error depositing money")
 
 def buy_product(account, amount_used):
-    #payload = {'account': account, 'vcc_amount_used': amount_used}
     user = "account: "+account
     amount_used = (str(amount_used)+"                       ").encode("utf8")
 
