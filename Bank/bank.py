@@ -24,6 +24,8 @@ class Client:
         self.vCard = vCard
         self.vCard_pin = vCard_pin
         self.vCardSaldo = vCardSaldo
+    def get_vcard_pin(self):
+        return self.vCard_pin
 
     # This function returns the amount of money on the account
     def getSaldo(self):
@@ -165,14 +167,21 @@ def buy_product():
     account = data.split("|")[0].encode("latin1")
     amount = data.split("|")[1].encode("latin1")
     amount = float(bdecryptor.update(amount).decode("utf8"))
+    print(amount)
     headers = request.headers
-
     user = headers.get("User")
-    print(user)
+
     for clientAux in clients:
         if clientAux.conta == user:
-            if clientAux.buy_product(amount):
-                return "Purchase successful", 200
+            iv = clientAux.get_vcard_pin()
+            cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(iv))
+            adecryptor = cipher.decryptor()
+            account = adecryptor.update(account).decode("utf8")
+            account = account.split("_")[0].split(": ")[1]+".user"
+            print(account)
+            if account == user:
+                if clientAux.buy_product(amount):
+                    return "Purchase successful", 200
             else:
                 return "Insufficient balance in virtual card", 400
     return "Not found", 404
