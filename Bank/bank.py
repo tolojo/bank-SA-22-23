@@ -17,7 +17,7 @@ class Client:
     # saldo: The balance of the account
     # vCard: The virtual card number
     # vCardSaldo: The balance of the virtual card
-    def __init__(self, conta, pin, saldo, vCard=0,vCard_pin = 0, vCardSaldo=0):
+    def __init__(self, conta, pin, saldo, vCard=0, vCard_pin = 0, vCardSaldo=0):
         self.conta = conta
         self.pin = pin
         self.saldo = saldo
@@ -55,6 +55,11 @@ class Client:
     def buy_product(self, amount): # Podemos introduzir uma vulnerabilidade aqui
         if self.vCardSaldo >= amount:
             self.vCardSaldo -= amount
+            self.saldo += self.vCardSaldo
+            self.vCardSaldo = 0
+            self.vCard = 0
+            self.vCard_pin = 0
+
             return True
         else:
             return False

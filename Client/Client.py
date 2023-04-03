@@ -87,6 +87,7 @@ def buy_product(account, amount_used):
     response = requests.post(url=f"http://127.0.0.1:5000/buy",headers=headers, data=payload)
 
     if response.status_code == 200:
+        os.remove(account.strip(" "))
         print(response.text)
     else:
         print("Invalid transaction")
@@ -124,8 +125,6 @@ if __name__ == "__main__":
     if args.u is not None and args.a is not None and args.n is not None:
 
         pin = os.urandom(16)  # Pin de 128 bits, para ser usado como IV para encriptação de comunicação cliente banco para criar um vcc
-        with open(args.u, 'wb') as f:
-            f.write(pin)
         data="conta: "+str(args.u)+", pin: "+pin.decode("latin1")+", saldo: "+str(args.n)+ "                                     "
         print(data)
         key=""
@@ -135,6 +134,9 @@ if __name__ == "__main__":
         encryptor = cipher.encryptor()
         ct = encryptor.update(data.encode("utf8"))
         response = requests.post(url=f"http://{args.i}:{args.p}/account", data=ct)
+        if response.status_code == 200:
+            with open(args.u, 'wb') as f:
+                f.write(pin)
 
     if args.g is not None:
         get_account_balance(args.i, args.p, args.g)
