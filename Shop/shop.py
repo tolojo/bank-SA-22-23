@@ -25,25 +25,24 @@ def buy_product():
         key = f.read()
 
     h = hmac.new(key[:32], data, hashlib.sha3_256).hexdigest()
+
     if(h == request.headers.get("Authorization")):
+
         data=data.decode("latin1")
-        print("hashes match")
         cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(key[32:]))
         decryptor = cipher.decryptor()
+
         amount = data.split("|")[1].encode("latin1")
-        decrypted_data = decryptor.update(amount).decode("utf8")
-        print(decrypted_data) #Apenas faz sentido para a loja saber o que está a ser transacionado
+        decrypted_amount = decryptor.update(amount).decode("utf8")
 
-        requestBank = requests.post(url=f"http://127.0.0.1:3000/account/buyproduct", data=)
-        """
-        response_dict = response.json()
-        response_json = json.dumps(response_dict).encode('utf-8')
-        encryptor = cipher.encryptor()
-        encrypted_response = encryptor.update(response_json) + encryptor.finalize()
-        return encrypted_response
-        """
-        return
+        print(decrypted_amount) #Apenas faz sentido para a loja saber o que está a ser transacionado
+        print("data: "+data)
+        requestBank = requests.post(url=f"http://127.0.0.1:3000/buyproduct", headers=request.headers, data=data)
 
+        if(requestBank.status_code==200):
+            print("Bank approval")
+            return "success", 200
+        return "failed transaction", 401
 
 if __name__ == "__main__":
     args = parse_args()

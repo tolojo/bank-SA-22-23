@@ -153,14 +153,24 @@ def regCard(conta_id):
 
 
 # Buy product
-@app.route('/account/buyproduct', methods=['POST'])
+@app.route('/buyproduct', methods=['POST'])
 def buy_product():
-    data = request.get_json()
-    conta = data.get("conta")
-    amount = data.get("amount")
+    with open("bank.auth", 'rb') as f:
+        key = f.read()
+    cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(key[32:]))
+    bdecryptor = cipher.decryptor()
 
+    data = request.get_data()
+    data = data.decode("latin1")
+    account = data.split("|")[0].encode("latin1")
+    amount = data.split("|")[1].encode("latin1")
+    amount = float(bdecryptor.update(amount).decode("utf8"))
+    headers = request.headers
+
+    user = headers.get("User")
+    print(user)
     for clientAux in clients:
-        if clientAux.conta == conta:
+        if clientAux.conta == user:
             if clientAux.buy_product(amount):
                 return "Purchase successful", 200
             else:

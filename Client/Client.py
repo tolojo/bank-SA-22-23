@@ -11,6 +11,13 @@ from cryptography.hazmat.primitives.ciphers.algorithms import AES
 global seqNumber
 seqNumber = 0
 
+"""
+python3 Client.py -s bank.auth -u 55555.user -a 55555 -n 1000.00
+python3 Client.py -s bank.auth -u 55555.user -a 55555 -c 63.10  
+python3 Client.py -a 55555_0.card -m 45.10 
+
+"""
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Client')
@@ -32,7 +39,7 @@ def signal_handler(sig, frame):
 
 
 def get_account_balance(ip, port, account):
-    response = requests.get(url=f"http://{ip}:{port}/account/{account}")
+    response = requests.get(url=f"http://{ip}:{port}/account/{account}.user")
     if response.status_code == 200:
         print(response.text)
     else:
@@ -68,13 +75,14 @@ def buy_product(account, amount_used):
     encryptor = cipher.encryptor()
 
     amount = encryptor.update(amount_used)
-    print(amount)
-
     payload = (user.decode("latin1")+"|"+amount.decode("latin1")).encode("latin1")
     # Encrypt account with vcc iv and amount with .auth iv
     h =  hmac.new(key[:32],payload,hashlib.sha3_256).hexdigest()
+    account=account+"                                            "
+    user = account.split("_")[0]
     headers = {
-        "Authorization": f"{h}"
+        "Authorization": f"{h}",
+        "User": f"{user}.user"
     }
     response = requests.post(url=f"http://127.0.0.1:5000/buy",headers=headers, data=payload)
 
