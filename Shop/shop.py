@@ -37,7 +37,7 @@ def buy_product():
 
         print(decrypted_amount) #Apenas faz sentido para a loja saber o que está a ser transacionado
         print("data: "+data)
-        requestBank = requests.post(url=f"http://127.0.0.1:3000/buyproduct", headers=request.headers, data=data)
+        requestBank = requests.post(url=f"http://127.0.0.1:3000/buyproduct", headers=request.headers, data=data, timeout=10)
 
         if(requestBank.status_code==200):
             print("Bank approval")

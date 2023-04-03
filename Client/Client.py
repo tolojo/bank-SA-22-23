@@ -2,8 +2,10 @@ import hashlib
 import json
 import os
 import argparse
+import signal
 import sys
 import hmac
+from multiprocessing import Process
 
 import requests
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
@@ -17,6 +19,13 @@ python3 Client.py -s bank.auth -u 55555.user -a 55555 -c 63.10
 python3 Client.py -a 55555_0.card -m 45.10 
 
 """
+def handler(signum, frame):
+   print("Forever is over!")
+   raise Exception("end of time")
+
+signal.signal(signal.SIGALRM, handler)
+
+signal.alarm(10)
 
 
 def parse_args():
@@ -48,7 +57,7 @@ def get_account_balance(ip, port, account):
 
 def deposit(ip, port, account, deposit_amount):
     payload = {'account': account, 'deposit': deposit_amount}
-    response = requests.post(url=f"http://{ip}:{port}/account/deposit", json=payload)
+    response = requests.post(url=f"http://{ip}:{port}/account/deposit", json=payload, timeout=10)
     if response.status_code == 200:
         print(response.text)
     else:
@@ -84,7 +93,8 @@ def buy_product(account, amount_used):
         "Authorization": f"{h}",
         "User": f"{user}.user"
     }
-    response = requests.post(url=f"http://127.0.0.1:5000/buy",headers=headers, data=payload)
+
+    response = requests.post(url=f"http://127.0.0.1:5000/buy",headers=headers, data=payload,timeout=10)
 
     if response.status_code == 200:
         os.remove(account.strip(" "))
@@ -104,7 +114,7 @@ def create_vcc(ip, port, account, vcc_amount):
     cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(iv))
     encryptor = cipher.encryptor()
     data = encryptor.update(payload.encode('utf8'))
-    response = requests.post(url=f"http://{ip}:{port}/account/createCard/"+account, data=data)
+    response = requests.post(url=f"http://{ip}:{port}/account/createCard/"+account, data=data, timeout=10)
     if response.status_code == 200:
         with open(account+"_"+str(seqNumber)+".card", 'wb') as f:
             f.write(vcc_pin)
@@ -133,7 +143,7 @@ if __name__ == "__main__":
         cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(key[32:]))
         encryptor = cipher.encryptor()
         ct = encryptor.update(data.encode("utf8"))
-        response = requests.post(url=f"http://{args.i}:{args.p}/account", data=ct)
+        response = requests.post(url=f"http://{args.i}:{args.p}/account", data=ct, timeout=10)
         if response.status_code == 200:
             with open(args.u, 'wb') as f:
                 f.write(pin)
