@@ -83,6 +83,16 @@ def parse_args():
     parser.add_argument('-s', metavar='auth-file', type=str, default='bank.auth', help='Name of the auth file. Defaults to bank.auth')
     return parser.parse_args()
 
+# This function validates the input arguments
+def validate_args(args):
+    if not (1024 <= args.p <= 65535):
+        return False, 135
+
+    if not filename_regex.match(args.s):
+        return False, 130
+
+    return True, None
+
 # This function handles the SIGTERM signal
 def signal_handler(sig, frame):
     print("SIGTERM received. Exiting cleanly...")
@@ -215,6 +225,11 @@ def buy_product():
 
 if __name__ == "__main__":
     args = parse_args()
+    valid, error_code = validate_args(args)
+    if not valid:
+        sys.exit(error_code)
+
+    signal.signal(signal.SIGTERM, signal_handler)
     genServerKeys(args.s)
     app.run(host="0.0.0.0", port=args.p)
 
