@@ -11,10 +11,24 @@ from flask import Flask, request
 app = Flask(__name__)
 HMACs = {}
 
+def valid_port(port):
+    return 1 <= port <= 65535
+
+def check_auth_file(value):
+    if not os.path.isfile(value):
+        raise argparse.ArgumentTypeError(f"File '{value}' does not exist.")
+    return value
+
+def check_port(value):
+    value = int(value)
+    if not valid_port(value):
+        raise argparse.ArgumentTypeError("Invalid port number.")
+    return value
+
 def parse_args():
     parser = argparse.ArgumentParser(description='Store')
-    parser.add_argument('-p', metavar='store-port', type=int, default=5000, help='The port that the store will listen on. Defaults to 3000.')
-    parser.add_argument('-s', metavar='auth-file', type=str, default='bank.auth', help='Name of the auth file. Defaults to bank.auth')
+    parser.add_argument('-p', metavar='store-port', type=check_port, default=5000, help='The port that the store will listen on. Defaults to 3000.')
+    parser.add_argument('-s', metavar='auth-file', type=check_auth_file, default='bank.auth', help='Name of the auth file. Defaults to bank.auth')
     return parser.parse_args()
 
 @app.route('/buy', methods=['POST'])
@@ -48,4 +62,3 @@ if __name__ == "__main__":
     args = parse_args()
 
     app.run(host="0.0.0.0", port=args.p)
-
