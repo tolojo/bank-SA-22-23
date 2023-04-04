@@ -13,6 +13,9 @@ from cryptography.hazmat.primitives.ciphers.algorithms import AES
 global seqNumber
 seqNumber = 0
 
+account_name_regex = re.compile(r'^\w{1,250}$')
+filename_regex = re.compile(r'^[\w\-. ]{1,250}$')
+
 """
 python3 Client.py -s bank.auth -u 55555.user -a 55555 -n 1000.00
 python3 Client.py -s bank.auth -u 55555.user -a 55555 -c 63.10  
@@ -23,7 +26,21 @@ def handler(signum, frame):
    print("Forever is over!")
    raise Exception("end of time")
 
+def signal_handler(sig, frame):
+    print("SIGTERM received. Exiting cleanly...")
+    sys.exit(0)
+
 # Argument Parsing #
+def check_port(value):
+    if not 1024 <= value <= 65535:
+        raise argparse.ArgumentTypeError("Port must be in the range 1024-65535.")
+    return value
+
+def check_auth_file(value):
+    if not filename_regex.match(value):
+        raise argparse.ArgumentTypeError("Invalid auth file name.")
+    return value
+
 def check_balance(value):
     if value <= 0:
         raise argparse.ArgumentTypeError("Balance must be a positive number.")
@@ -32,6 +49,8 @@ def check_balance(value):
 def check_account(value):
     if not os.path.isfile(value + '.user'):
         raise argparse.ArgumentTypeError(f"Account '{value}' does not exist.")
+    if not account_name_regex.match(value):
+        raise argparse.ArgumentTypeError("Invalid account name.")
     return value
 
 def parse_args():
@@ -60,6 +79,7 @@ def get_account_balance(ip, port, account):
         print(response.text)
     else:
         print("Error getting account balance")
+        sys.exit(130)
 
 
 def deposit(ip, port, account, deposit_amount):
@@ -92,6 +112,7 @@ def deposit(ip, port, account, deposit_amount):
         print(response.text)
     else:
         print("Error depositing money")
+        sys.exit(125)
 
 def buy_product(account, amount_used):
     user = "account: "+account
@@ -127,6 +148,7 @@ def buy_product(account, amount_used):
         print(response.text)
     else:
         print("Invalid transaction")
+        sys.exit(135)
 
 def create_vcc(ip, port, account, vcc_amount):
     global seqNumber
@@ -149,6 +171,7 @@ def create_vcc(ip, port, account, vcc_amount):
 
     else:
         print("Error creating virtual card")
+        sys.exit(125)
 
 
 
@@ -186,3 +209,4 @@ if __name__ == "__main__":
     if args.m is not None and args.a is not None:
         buy_product(args.a, args.m)
 
+    signal.signal(signal.SIGTERM, signal_handler)

@@ -4,12 +4,20 @@ import os
 import argparse
 import sys
 import hmac
+import re
+import signal
 
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 clients = []
+
+filename_regex = re.compile(r'^[_\-\.0-9a-z]{1,127}$')
+account_name_regex = re.compile(r'^[_\-\.0-9a-z]{1,122}$')
+ip_address_regex = re.compile(r'^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$')
+valid_number_regex = re.compile(r'^(0|[1-9][0-9]*)$')
+balance_regex = re.compile(r'^(0|[1-9][0-9]*\.[0-9]{2})$')
 
 
 class Client:
@@ -19,13 +27,14 @@ class Client:
     # saldo: The balance of the account
     # vCard: The virtual card number
     # vCardSaldo: The balance of the virtual card
-    def __init__(self, conta, pin, saldo, vCard=0, vCard_pin = 0, vCardSaldo=0):
+    def __init__(self, conta, pin, saldo, vCard=0, vCard_pin=0, vCardSaldo=0):
         self.conta = conta
         self.pin = pin
         self.saldo = saldo
         self.vCard = vCard
         self.vCard_pin = vCard_pin
         self.vCardSaldo = vCardSaldo
+
     def get_vcard_pin(self):
         return self.vCard_pin
 
@@ -41,7 +50,7 @@ class Client:
     # amount: The amount of money that you want to create a virtual card with
     # return: The virtual card number
     def create_vcard(self, amount, vCard_pin):
-        amount=float(amount)
+        amount = float(amount)
         if self.saldo >= amount:
             self.saldo -= amount
             self.vCardSaldo += amount
@@ -54,7 +63,7 @@ class Client:
     # This function buys a product
     # amount: The amount of money that you want to spend
     # return: True if the purchase was successful, False otherwise
-    def buy_product(self, amount): # Podemos introduzir uma vulnerabilidade aqui
+    def buy_product(self, amount):
         if self.vCardSaldo >= amount:
             self.vCardSaldo -= amount
             self.saldo += self.vCardSaldo
@@ -65,6 +74,7 @@ class Client:
             return True
         else:
             return False
+
 
 # This function generates the server keys
 def genServerKeys(filePath): # Generate the server keys
@@ -102,6 +112,8 @@ def signal_handler(sig, frame):
 # User Login
 @app.route('/account/<conta>', methods=['GET'])
 def getUser(conta):
+    if not account_name_regex.match(conta):
+        return "Invalid account name", 400
     for clientAux in clients:
         if clientAux.conta == conta:
             return jsonify({"saldo": clientAux.saldo}), 200
@@ -163,6 +175,8 @@ def deposit():
 # Create virtual card
 @app.route('/account/createCard/<conta_id>', methods=['POST'])
 def regCard(conta_id):
+    if not account_name_regex.match(conta_id):
+        return "Invalid account name", 400
     data = request.get_data()
     iv = 0
     with open("bank.auth", 'rb') as f:
