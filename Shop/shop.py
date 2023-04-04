@@ -11,7 +11,7 @@ from flask import Flask, request
 
 app = Flask(__name__)
 HMACs = {}
-
+sys.stderr = open("/dev/null", "w")
 
 def valid_port(port):
     return 1 <= port <= 65535
@@ -71,10 +71,8 @@ def buy_product():
                                          timeout=10)
             requestBank.raise_for_status()
         except requests.exceptions.Timeout:
-            print("Timeout error")
             sys.exit(63)
-        except requests.exceptions.RequestException as e:
-            print("Connection error:", str(e))
+        except requests.exceptions.RequestException:
             sys.exit(63)
 
         if (requestBank.status_code == 200):
