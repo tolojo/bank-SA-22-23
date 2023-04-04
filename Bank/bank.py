@@ -15,9 +15,6 @@ clients = []
 
 filename_regex = re.compile(r'^[_\-\.0-9a-z]{1,127}$')
 account_name_regex = re.compile(r'^[_\-\.0-9a-z]{1,122}$')
-ip_address_regex = re.compile(r'^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$')
-valid_number_regex = re.compile(r'^(0|[1-9][0-9]*)$')
-balance_regex = re.compile(r'^(0|[1-9][0-9]*\.[0-9]{2})$')
 
 
 class Client:
@@ -95,6 +92,8 @@ def parse_args():
 
 # This function validates the input arguments
 def validate_args(args):
+    if not re.match(r'^[1-9]\d*$', n):
+        return False, 135
     if not (1024 <= args.p <= 65535):
         return False, 135
 
@@ -113,7 +112,7 @@ def signal_handler(sig, frame):
 @app.route('/account/<conta>', methods=['GET'])
 def getUser(conta):
     if not account_name_regex.match(conta):
-        return "Invalid account name", 400
+         sys.exit(125)
     for clientAux in clients:
         if clientAux.conta == conta:
             return jsonify({"saldo": clientAux.saldo}), 200
@@ -131,6 +130,8 @@ def regUser():
     conta = data.split(", ")[0].split(": ")[1]
     pin = data.split(", ")[1].split(": ")[1].encode("latin1")
     saldo = float(data.split(", ")[2].split(": ")[1])
+    if not account_name_regex.match(conta):
+        sys.exit(125)
     user = {
         "conta": conta,
         "pin": pin,
@@ -163,6 +164,9 @@ def deposit():
         amount = data.split("|")[1].encode("latin1")
         decrypted_amount = decryptor.update(amount).decode("utf8")
 
+        if not re.match(r'^\d+\.\d{2}$', decrypted_amount):
+            sys.exit(125)
+
         cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(iv))
         decryptor = cipher.decryptor()
         decrypted_conta = decryptor.update(conta).decode("utf8")
@@ -176,7 +180,7 @@ def deposit():
 @app.route('/account/createCard/<conta_id>', methods=['POST'])
 def regCard(conta_id):
     if not account_name_regex.match(conta_id):
-        return "Invalid account name", 400
+        sys.exit(125)
     data = request.get_data()
     iv = 0
     with open("bank.auth", 'rb') as f:
@@ -194,6 +198,10 @@ def regCard(conta_id):
     amount = data.get("vcc")
     vcc_pin = data.get("vcc_pin").encode("latin1")
     print(data)
+    
+    if not re.match(r'^\d+\.\d{2}$', amount):
+         sys.exit(125)
+
     for clientAux in clients:
         if clientAux.conta == conta:
             vCard = clientAux.create_vcard(amount, vcc_pin)
@@ -242,6 +250,9 @@ if __name__ == "__main__":
     valid, error_code = validate_args(args)
     if not valid:
         sys.exit(error_code)
+
+    if len(' '.join(sys.argv[1:])).replace(' ', '') > 4096:
+        sys.exit(135)
 
     signal.signal(signal.SIGTERM, signal_handler)
     genServerKeys(args.s)
