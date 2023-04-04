@@ -23,9 +23,6 @@ def handler(signum, frame):
    print("Forever is over!")
    raise Exception("end of time")
 
-signal.signal(signal.SIGALRM, handler)
-
-signal.alarm(10)
 
 
 def parse_args():
@@ -36,7 +33,7 @@ def parse_args():
     parser.add_argument('-u', metavar='user-file', type=str, default = None, help='The customer user file. The default value is the account name prepended to .user')
     parser.add_argument('-a', metavar='account', type=str, help='The account that you want to do operations.')
     parser.add_argument('-n', metavar='balance', type=float, help='The balance of the account that you want to create')
-    parser.add_argument('-d', metavar='deposit', type=int, help='The amount you want to deposit on the account')
+    parser.add_argument('-d', metavar='deposit', type=float, help='The amount you want to deposit on the account')
     parser.add_argument('-c', metavar='vcc', type=float, help='The amount of money that you want to create a virtual card with')
     parser.add_argument('-g', metavar='balance', type=int, help='Get the balance of a certain account')
     parser.add_argument('-m', metavar='purchase', type=float, help='Withdraw the amount of money specified from the virtual credit card and the bank account')
@@ -56,19 +53,17 @@ def get_account_balance(ip, port, account):
 
 
 def deposit(ip, port, account, deposit_amount):
-    user = "account: " + account
+    user = (account+".user                                            ").encode("utf8")
+    deposit_amount = (str(deposit_amount) + "                                       ").encode("utf8")
 
     with open("bank.auth", 'rb') as f:
         key = f.read()
-    with open(account, 'rb') as f:
+    with open(account+".user", 'rb') as f:
         iv = f.read()
 
     cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(iv))
     encryptor = cipher.encryptor()
-    user = encryptor.update(user.encode("utf8"))
-
-    with open("bank.auth", 'rb') as f:
-        key = f.read()
+    user = encryptor.update(user)
 
     cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(key[32:]))
     encryptor = cipher.encryptor()
@@ -76,15 +71,13 @@ def deposit(ip, port, account, deposit_amount):
     amount = encryptor.update(deposit_amount)
 
     payload = (user.decode("latin1") + "|" + amount.decode("latin1")).encode("latin1")
-    #payload = {'account': account, 'deposit': deposit_amount}
     h =  hmac.new(key[:32],payload,hashlib.sha3_256).hexdigest()
-    account=account+"                                            "
-    user = account.split("_")[0]
+
     headers = {
         "Authorization": f"{h}",
-        "User": f"{user}.user"
+        "User": f"{account}.user"
     }
-    response = requests.post(url=f"http://{ip}:{port}/account/deposit",headers=headers, json=payload, timeout=10)
+    response = requests.post(url=f"http://{ip}:{port}/account/deposit", headers=headers, data=payload, timeout=10)
     if response.status_code == 200:
         print(response.text)
     else:
@@ -102,9 +95,6 @@ def buy_product(account, amount_used):
     cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(iv))
     encryptor = cipher.encryptor()
     user = encryptor.update(user.encode("utf8"))
-    #erro no amount
-    with open("bank.auth", 'rb') as f:
-        key = f.read()
 
     cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(key[32:]))
     encryptor = cipher.encryptor()

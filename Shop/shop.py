@@ -27,7 +27,7 @@ def buy_product():
     h = hmac.new(key[:32], data, hashlib.sha3_256).hexdigest()
 
     if(h == request.headers.get("Authorization")):
-
+        #falta fazer verificação do hmac no buy product do bank
         data=data.decode("latin1")
         cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(key[32:]))
         decryptor = cipher.decryptor()

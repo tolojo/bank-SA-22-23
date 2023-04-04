@@ -1,7 +1,9 @@
+import hashlib
 import json
 import os
 import argparse
 import sys
+import hmac
 
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from flask import Flask, request, jsonify
@@ -33,7 +35,7 @@ class Client:
 
     # This function deposits money on the account
     def deposit(self, amount):
-        self.saldo += amount
+        self.saldo += float(amount)
 
     # This function creates a virtual card
     # amount: The amount of money that you want to create a virtual card with
@@ -119,15 +121,34 @@ def regUser():
 # Deposit
 @app.route('/account/deposit', methods=['POST'])
 def deposit():
-    data = request.get_json()
-    conta = data.get("conta")
-    amount = data.get("amount")
+    data = request.get_data()
 
-    for clientAux in clients:
-        if clientAux.conta == conta:
-            clientAux.deposit(amount)
-            return "Deposit successful", 200
-    return "Not found", 404
+    with open("bank.auth", 'rb') as f:
+        key = f.read()
+
+    h = hmac.new(key[:32], data, hashlib.sha3_256).hexdigest()
+
+    if (h == request.headers.get("Authorization")):
+        user = request.headers.get("User")
+        for clientAux in clients:
+            if clientAux.conta == user:
+                iv = clientAux.pin
+        data = data.decode("latin1")
+        cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(key[32:]))
+        decryptor = cipher.decryptor()
+
+        conta = data.split("|")[0].encode("latin1")
+        amount = data.split("|")[1].encode("latin1")
+        decrypted_amount = decryptor.update(amount).decode("utf8")
+
+        cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(iv))
+        decryptor = cipher.decryptor()
+        decrypted_conta = decryptor.update(conta).decode("utf8")
+        for clientAux in clients:
+            if clientAux.conta == decrypted_conta.strip(" "):
+                clientAux.deposit(decrypted_amount)
+                return "Deposit successful", 200
+        return "Not found", 404
 
 # Create virtual card
 @app.route('/account/createCard/<conta_id>', methods=['POST'])
