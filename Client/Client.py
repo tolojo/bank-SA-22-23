@@ -23,21 +23,31 @@ def handler(signum, frame):
    print("Forever is over!")
    raise Exception("end of time")
 
+# Argument Parsing #
+def check_balance(value):
+    if value <= 0:
+        raise argparse.ArgumentTypeError("Balance must be a positive number.")
+    return value
 
+def check_account(value):
+    if not os.path.isfile(value + '.user'):
+        raise argparse.ArgumentTypeError(f"Account '{value}' does not exist.")
+    return value
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Client')
     parser.add_argument('-i', metavar='bk-ip', type=str, default='127.0.0.1',  help='The IP that the client will search the bank. default is localhost')
-    parser.add_argument('-p', metavar='bk-port', type=int, default=3000, help='The port that bank will listen on. Defaults to 3000.')
-    parser.add_argument('-s', metavar='auth-file', type=str, default='bank.auth', help='Name of the auth file. Defaults to bank.auth')
-    parser.add_argument('-u', metavar='user-file', type=str, default = None, help='The customer user file. The default value is the account name prepended to .user')
-    parser.add_argument('-a', metavar='account', type=str, help='The account that you want to do operations.')
-    parser.add_argument('-n', metavar='balance', type=float, help='The balance of the account that you want to create')
-    parser.add_argument('-d', metavar='deposit', type=float, help='The amount you want to deposit on the account')
-    parser.add_argument('-c', metavar='vcc', type=float, help='The amount of money that you want to create a virtual card with')
+    parser.add_argument('-p', metavar='bk-port', type=check_port, default=3000, help='The port that bank will listen on. Defaults to 3000.')
+    parser.add_argument('-s', metavar='auth-file', type=check_auth_file, default='bank.auth', help='Name of the auth file. Defaults to bank.auth')
+    parser.add_argument('-u', metavar='user-file', type=str, default=None, help='The customer user file. The default value is the account name prepended to .user')
+    parser.add_argument('-a', metavar='account', type=check_account, help='The account that you want to do operations.')
+    parser.add_argument('-n', metavar='balance', type=check_balance, help='The balance of the account that you want to create')
+    parser.add_argument('-d', metavar='deposit', type=check_balance, help='The amount you want to deposit on the account')
+    parser.add_argument('-c', metavar='vcc', type=check_balance, help='The amount of money that you want to create a virtual card with')
     parser.add_argument('-g', metavar='balance', type=int, help='Get the balance of a certain account')
-    parser.add_argument('-m', metavar='purchase', type=float, help='Withdraw the amount of money specified from the virtual credit card and the bank account')
+    parser.add_argument('-m', metavar='purchase', type=check_balance, help='Withdraw the amount of money specified from the virtual credit card and the bank account')
     return parser.parse_args()
+
 
 def signal_handler(sig, frame):
     print("SIGTERM received. Exiting cleanly...")
