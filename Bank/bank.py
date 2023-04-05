@@ -318,7 +318,7 @@ if __name__ == "__main__":
     if not valid:
         sys.exit(error_code)
 
-    if len(' '.join(sys.argv[1:])).replace(' ', '') > 4096:
+    if ' '.join(sys.argv[1:]).replace(' ', '').__len__() > 4096:
         sys.exit(130)
 
     signal.signal(signal.SIGTERM, signal_handler)

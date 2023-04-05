@@ -217,7 +217,7 @@ def create_vcc(ip, port, account, vcc_amount):
 if __name__ == "__main__":
     args = parse_args()
     
-    if len(' '.join(sys.argv[1:])).replace(' ', '') > 4096:
+    if ' '.join(sys.argv[1:]).replace(' ', '').__len__() > 4096:
         sys.exit(130)
 
     valid, error_code = validate_args(args)
