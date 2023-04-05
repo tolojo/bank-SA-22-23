@@ -40,7 +40,7 @@ def parse_args():
     return parser.parse_args()
 
 def validate_args(args):
-    if not re.match(r'^[1-9]\d*$', args.p):
+    if not re.match(r'^[1-9]\d*$', str(args.p)):
         return False, 135
     if not (1024 <= args.p <= 65535):
         return False, 135

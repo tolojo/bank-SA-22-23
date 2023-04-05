@@ -39,7 +39,7 @@ def parse_args():
     return parser.parse_args()
 
 def validate_args(args):
-    if not re.match(r'^[1-9]\d*$', args.p):
+    if not re.match(r'^[1-9]\d*$', str(args.p)):
         return False, 135
     if not (1024 <= args.p <= 65535):
         return False, 135
@@ -235,7 +235,7 @@ if __name__ == "__main__":
         if not re.match(r'^[_.\-a-zA-Z0-9]{1,122}$', args.a):
             sys.exit(130)
 
-        if not re.match(float_regex, args.n):
+        if not re.match(float_regex, str(args.n)):
             sys.exit(130)
 
         if not re.match(filename_regex, args.u):
@@ -263,13 +263,13 @@ if __name__ == "__main__":
                 f.write(pin)
 
     if args.g is not None:
-        if not re.match(decimal_regex, args.g):
+        if not re.match(decimal_regex, str(args.g)):
             sys.exit(130)
 
         get_account_balance(args.i, args.p, args.g)
 
     if args.d is not None and args.a is not None:
-        if not re.match(float_regex, args.d):
+        if not re.match(float_regex, str(args.d)):
             sys.exit(130)
 
         deposit(args.i, args.p, args.a, args.d)
@@ -278,7 +278,7 @@ if __name__ == "__main__":
         if not re.match(r'^[_.\-a-zA-Z0-9]{1,122}$', args.a):
             sys.exit(130)
 
-        if not re.match(float_regex, args.c):
+        if not re.match(float_regex, str(args.c)):
             sys.exit(130)
 
         create_vcc(args.i, args.p, args.a, args.c)
