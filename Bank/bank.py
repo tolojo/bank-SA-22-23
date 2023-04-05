@@ -7,7 +7,10 @@ import hmac
 import re
 import signal
 
+import flask
+from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives.asymmetric import rsa
 from flask import Flask, request, jsonify
 
 app = Flask(__name__)
@@ -82,6 +85,31 @@ def genServerKeys(filePath): # Generate the server keys
     kIv = key + iv
     with open(filePath, 'wb') as f:
         f.write(kIv)
+
+    private_key = rsa.generate_private_key(
+        public_exponent=65537,
+        key_size=2048,
+    )
+
+    public_key = private_key.public_key()
+
+    pem = private_key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption()
+    )
+
+    with open("bank_ptk.pem", 'wb') as f:
+        f.write(pem)
+
+    pem = public_key.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+
+    with open("bank_pbk.pem", 'wb') as f:
+        f.write(pem)
+
 
 # This function parses the arguments
 def parse_args():
@@ -243,6 +271,22 @@ def buy_product():
                 return "Insufficient balance in virtual card", 400
     return "Not found", 404
 
+@app.route('/serverPK', methods=['GET'])
+def get_server_pbk():
+    with open("bank.auth", 'rb') as f:
+        key = f.read()
+
+    with open("bank_pbk.pem", 'rb') as f:
+        pk = f.read()
+
+    cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(key[32:]))
+    encryptor = cipher.encryptor()
+    pk = encryptor.update(pk)
+    h = hmac.new(key[:32], pk, hashlib.sha3_256).hexdigest()
+    resp = flask.Response()
+    resp.data = pk
+    resp.headers["Authorization"] = h
+    return resp
 
 if __name__ == "__main__":
     args = parse_args()
