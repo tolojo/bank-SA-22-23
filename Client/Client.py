@@ -7,7 +7,7 @@ import hmac
 import re
 import signal
 from multiprocessing import Process
-
+from flask import request
 import requests
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives.ciphers.algorithms import AES
@@ -58,18 +58,40 @@ def signal_handler(sig, frame):
 
 
 def get_account_balance(ip, port, account):
-    try:
-        response = requests.get(url=f"http://{ip}:{port}/account/{account}.user", timeout=10)
-        response.raise_for_status()
-    except requests.exceptions.Timeout:
-        sys.exit(63)
-    except requests.exceptions.RequestException:
-        sys.exit(63)
-    if response.status_code == 200:
-        print(response.text)
-        sys.stdout.flush()
-    else:
-        sys.exit(135)
+    data = request.get_data()
+
+    with open("bank.auth", 'rb') as f:
+        key = f.read()
+    with open(account+".user", 'rb') as f:
+        iv = f.read()
+
+    h = hmac.new(key[:32], data, hashlib.sha3_256).hexdigest()
+
+    if (h == request.headers.get("Authorization")):
+
+        data = data.decode("latin1")
+        cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(key[32:]))
+        decryptor = cipher.decryptor()
+
+        conta = data.split("|")[0].encode("latin1")
+        decryptor.update(conta).decode("utf8")
+
+        cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(iv))
+        decryptor = cipher.decryptor()
+        decryptor.update(conta).decode("utf8")
+
+        try:
+            response = requests.get(url=f"http://{ip}:{port}/account/{account}.user", headers=request.headers, timeout=10)
+            response.raise_for_status()
+        except requests.exceptions.Timeout:
+            sys.exit(63)
+        except requests.exceptions.RequestException:
+            sys.exit(63)
+        if response.status_code == 200:
+            print(response.text)
+            sys.stdout.flush()
+        else:
+            sys.exit(135)
 
 
 def deposit(ip, port, account, deposit_amount):
@@ -98,7 +120,7 @@ def deposit(ip, port, account, deposit_amount):
     amount = encryptor.update(deposit_amount)
 
     payload = (user.decode("latin1") + "|" + amount.decode("latin1")).encode("latin1")
-    h =  hmac.new(key[:32],payload,hashlib.sha3_256).hexdigest()
+    h = hmac.new(key[:32], payload, hashlib.sha3_256).hexdigest()
 
     headers = {
         "Authorization": f"{h}",

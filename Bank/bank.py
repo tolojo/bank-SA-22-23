@@ -137,12 +137,36 @@ def signal_handler(sig, frame):
 # Routes
 # User Login
 @app.route('/account/<conta>', methods=['GET'])
-def getUser(conta):
+def getUser(conta, saldo):
     if not re.match(account_name_regex, conta):
          sys.exit(125)
+
+    saldo = (saldo + "                                            ").encode("utf8")
+
+    with open("bank.auth", 'rb') as f:
+        key = f.read()
+    with open(conta+".user", 'rb') as f:
+        iv = f.read()
+
+    cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(iv))
+    encryptor = cipher.encryptor()
+    saldo = encryptor.update(saldo)
+
+    cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(key[32:]))
+    cipher.encryptor()
+
+    payload = (saldo.decode("latin1")).encode("latin1")
+
+    h = hmac.new(key[:32], payload, hashlib.sha3_256).hexdigest()
+
+    headers = {
+        "Authorization": f"{h}",
+        "User": f"{conta}.user"
+    }
+
     for clientAux in clients:
         if clientAux.conta == conta:
-            return jsonify({"saldo": clientAux.saldo}), 200
+            return jsonify({"saldo": clientAux.saldo}), 200, headers
     return "Not found", 404
 
 # User Register
