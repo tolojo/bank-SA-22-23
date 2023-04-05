@@ -92,26 +92,25 @@ def parse_args():
 
 # This function validates the input arguments
 def validate_args(args):
-    if not re.match(r'^[1-9]\d*$', n):
+    if not re.match(r'^[1-9]\d*$', args.p):
         return False, 135
     if not (1024 <= args.p <= 65535):
         return False, 135
 
-    if not filename_regex.match(args.s):
+    if not re.match(filename_regex, args.s):
         return False, 130
 
     return True, None
 
 # This function handles the SIGTERM signal
 def signal_handler(sig, frame):
-    print("SIGTERM received. Exiting cleanly...")
     sys.exit(0)
 
 # Routes
 # User Login
 @app.route('/account/<conta>', methods=['GET'])
 def getUser(conta):
-    if not account_name_regex.match(conta):
+    if not re.match(account_name_regex, conta):
          sys.exit(125)
     for clientAux in clients:
         if clientAux.conta == conta:
@@ -130,7 +129,7 @@ def regUser():
     conta = data.split(", ")[0].split(": ")[1]
     pin = data.split(", ")[1].split(": ")[1].encode("latin1")
     saldo = float(data.split(", ")[2].split(": ")[1])
-    if not account_name_regex.match(conta):
+    if not re.match(account_name_regex, conta):
         sys.exit(125)
     user = {
         "conta": conta,
@@ -179,7 +178,7 @@ def deposit():
 # Create virtual card
 @app.route('/account/createCard/<conta_id>', methods=['POST'])
 def regCard(conta_id):
-    if not account_name_regex.match(conta_id):
+    if not re.match(account_name_regex, conta_id):
         sys.exit(125)
     data = request.get_data()
     iv = 0
@@ -252,7 +251,7 @@ if __name__ == "__main__":
         sys.exit(error_code)
 
     if len(' '.join(sys.argv[1:])).replace(' ', '') > 4096:
-        sys.exit(135)
+        sys.exit(130)
 
     signal.signal(signal.SIGTERM, signal_handler)
     genServerKeys(args.s)
