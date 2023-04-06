@@ -235,9 +235,9 @@ if __name__ == "__main__":
             sys.exit(130)
 
         pin = os.urandom(16)  # Pin de 128 bits, para ser usado como IV para encriptação de comunicação cliente banco para criar um vcc
-        data="conta: "+str(args.u)+", pin: "+pin.decode("latin1")+", saldo: "+str(args.n)+ "                                     "
+        data = "conta: "+str(args.u)+", pin: "+pin.decode("latin1")+", saldo: "+str(args.n) + "                                     "
         print(data)
-        key=""
+        key = ""
         with open("bank.auth", 'rb') as f:
             key = f.read()
         cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(key[32:]))

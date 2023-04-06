@@ -139,7 +139,7 @@ def signal_handler(sig, frame):
 @app.route('/account/<conta>', methods=['GET'])
 def getUser(conta):
     if not re.match(account_name_regex, conta):
-         sys.exit(125)
+        sys.exit(125)
     for clientAux in clients:
         if clientAux.conta == conta:
             with open("bank.auth", 'rb') as f:
@@ -175,6 +175,12 @@ def regUser(): #verificação da existencia de uma conta igual
     decryptor = cipher.decryptor()
     data = decryptor.update(data).decode("utf8")
     conta = data.split(", ")[0].split(": ")[1]
+
+    for clientAux in clients:
+        if conta == clientAux.conta:
+            print("Conta já existe")
+            return "Erro ao criar a conta", 400
+
     pin = data.split(", ")[1].split(": ")[1].encode("latin1")
     saldo = float(data.split(", ")[2].split(": ")[1])
 
