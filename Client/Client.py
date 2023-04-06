@@ -31,11 +31,11 @@ def parse_args():
     parser.add_argument('-s', metavar='auth-file', type=str, default='bank.auth', help='Name of the auth file. Defaults to bank.auth')
     parser.add_argument('-u', metavar='user-file', type=str, default = None, help='The customer user file. The default value is the account name prepended to .user')
     parser.add_argument('-a', metavar='account', type=str, help='The account that you want to do operations.')
-    parser.add_argument('-n', metavar='balance', type=float, help='The balance of the account that you want to create')
-    parser.add_argument('-d', metavar='deposit', type=float, help='The amount you want to deposit on the account')
-    parser.add_argument('-c', metavar='vcc', type=float, help='The amount of money that you want to create a virtual card with')
+    parser.add_argument('-n', metavar='balance', type=str, help='The balance of the account that you want to create')
+    parser.add_argument('-d', metavar='deposit', type=str, help='The amount you want to deposit on the account')
+    parser.add_argument('-c', metavar='vcc', type=str, help='The amount of money that you want to create a virtual card with')
     parser.add_argument('-g', metavar='balance', type=int, help='Get the balance of a certain account')
-    parser.add_argument('-m', metavar='purchase', type=float, help='Withdraw the amount of money specified from the virtual credit card and the bank account')
+    parser.add_argument('-m', metavar='purchase', type=str, help='Withdraw the amount of money specified from the virtual credit card and the bank account')
     return parser.parse_args()
 
 def validate_args(args):
@@ -231,11 +231,11 @@ if __name__ == "__main__":
         args.u = f"{args.a}.user"
 
     if args.u is not None and args.a is not None and args.n is not None:
-        
+
         if not re.match(r'^[_.\-a-zA-Z0-9]{1,122}$', args.a):
             sys.exit(130)
 
-        if not re.match(float_regex, str(args.n)):
+        if not re.match(float_regex, args.n):
             sys.exit(130)
 
         if not re.match(filename_regex, args.u):
@@ -250,7 +250,7 @@ if __name__ == "__main__":
         cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(key[32:]))
         encryptor = cipher.encryptor()
         ct = encryptor.update(data.encode("utf8"))
-        
+
         try:
             response = requests.post(url=f"http://{args.i}:{args.p}/account", data=ct, timeout=10)
             response.raise_for_status()
@@ -269,7 +269,7 @@ if __name__ == "__main__":
         get_account_balance(args.i, args.p, args.g)
 
     if args.d is not None and args.a is not None:
-        if not re.match(float_regex, str(args.d)):
+        if not re.match(float_regex, args.d):
             sys.exit(130)
 
         deposit(args.i, args.p, args.a, args.d)
@@ -278,7 +278,7 @@ if __name__ == "__main__":
         if not re.match(r'^[_.\-a-zA-Z0-9]{1,122}$', args.a):
             sys.exit(130)
 
-        if not re.match(float_regex, str(args.c)):
+        if not re.match(float_regex, args.c):
             sys.exit(130)
 
         create_vcc(args.i, args.p, args.a, args.c)

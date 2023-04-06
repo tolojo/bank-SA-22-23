@@ -105,5 +105,4 @@ if __name__ == "__main__":
     if ' '.join(sys.argv[1:]).replace(' ', '').__len__() > 4096:
         sys.exit(130)
 
-    signal.signal(signal.SIGTERM, signal_handler)
     app.run(host="0.0.0.0", port=args.p)
