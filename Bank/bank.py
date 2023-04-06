@@ -137,50 +137,47 @@ def signal_handler(sig, frame):
 # Routes
 # User Login
 @app.route('/account/<conta>', methods=['GET'])
-def getUser(conta, saldo):
+def getUser(conta):
     if not re.match(account_name_regex, conta):
          sys.exit(125)
-
-    saldo = (saldo + "                                            ").encode("utf8")
-
-    with open("bank.auth", 'rb') as f:
-        key = f.read()
-    with open(conta+".user", 'rb') as f:
-        iv = f.read()
-
-    cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(iv))
-    encryptor = cipher.encryptor()
-    saldo = encryptor.update(saldo)
-
-    cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(key[32:]))
-    cipher.encryptor()
-
-    payload = (saldo.decode("latin1")).encode("latin1")
-
-    h = hmac.new(key[:32], payload, hashlib.sha3_256).hexdigest()
-
-    headers = {
-        "Authorization": f"{h}",
-        "User": f"{conta}.user"
-    }
-
     for clientAux in clients:
         if clientAux.conta == conta:
-            return jsonify({"saldo": clientAux.saldo}), 200, headers
+            with open("bank.auth", 'rb') as f:
+                key = f.read()
+
+            cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(clientAux.pin))
+            encryptor = cipher.encryptor()
+
+            payload = ("saldo: " + str(clientAux.saldo) + "                                                  ").encode("utf8")
+
+            saldo = encryptor.update(payload)
+
+            h = hmac.new(key[:32], saldo, hashlib.sha3_256).hexdigest()
+
+            saldo = saldo.decode("latin1")
+
+            headers = {
+                "Authorization": f"{h}",
+            }
+
+            return saldo, 200, headers
     return "Not found", 404
 
 # User Register
 @app.route('/account', methods=['POST'])
-def regUser():
+def regUser(): #verificação da existencia de uma conta igual
     data = request.data
+
     with open("bank.auth", 'rb') as f:
         key = f.read()
+
     cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(key[32:]))
     decryptor = cipher.decryptor()
     data = decryptor.update(data).decode("utf8")
     conta = data.split(", ")[0].split(": ")[1]
     pin = data.split(", ")[1].split(": ")[1].encode("latin1")
     saldo = float(data.split(", ")[2].split(": ")[1])
+
     if not re.match(account_name_regex, conta):
         sys.exit(125)
     user = {

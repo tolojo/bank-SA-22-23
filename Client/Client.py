@@ -58,40 +58,33 @@ def signal_handler(sig, frame):
 
 
 def get_account_balance(ip, port, account):
-    data = request.get_data()
+    try:
+        response = requests.get(url=f"http://{ip}:{port}/account/{account}.user", timeout=10)
+        response.raise_for_status()
 
-    with open("bank.auth", 'rb') as f:
-        key = f.read()
-    with open(account+".user", 'rb') as f:
-        iv = f.read()
+        with open("bank.auth", 'rb') as f:
+            key = f.read()
+        with open(str(account) + ".user", 'rb') as f:
+            iv = f.read()
 
-    h = hmac.new(key[:32], data, hashlib.sha3_256).hexdigest()
+        h = hmac.new(key[:32], response.text.encode("latin1"), hashlib.sha3_256).hexdigest()
 
-    if (h == request.headers.get("Authorization")):
+        if (h == response.headers.get("Authorization")):
 
-        data = data.decode("latin1")
-        cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(key[32:]))
-        decryptor = cipher.decryptor()
+            cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(iv))
+            decryptor = cipher.decryptor()
 
-        conta = data.split("|")[0].encode("latin1")
-        decryptor.update(conta).decode("utf8")
+            saldo = decryptor.update(response.text.encode("latin1")).decode("utf8")
 
-        cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(iv))
-        decryptor = cipher.decryptor()
-        decryptor.update(conta).decode("utf8")
-
-        try:
-            response = requests.get(url=f"http://{ip}:{port}/account/{account}.user", headers=request.headers, timeout=10)
-            response.raise_for_status()
-        except requests.exceptions.Timeout:
-            sys.exit(63)
-        except requests.exceptions.RequestException:
-            sys.exit(63)
-        if response.status_code == 200:
-            print(response.text)
-            sys.stdout.flush()
-        else:
-            sys.exit(135)
+    except requests.exceptions.Timeout:
+        sys.exit(63)
+    except requests.exceptions.RequestException:
+        sys.exit(63)
+    if response.status_code == 200:
+        print(saldo)
+        sys.stdout.flush()
+    else:
+        sys.exit(135)
 
 
 def deposit(ip, port, account, deposit_amount):
