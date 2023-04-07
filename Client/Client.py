@@ -94,9 +94,9 @@ def deposit(ip, port, account, deposit_amount):
     if not re.match(r'^[_\-\.0-9a-z]{1,127}$', account):
         sys.exit(125) # invalid account name format
 
-    user = (account+".user                                            ").encode("utf8")
-    deposit_amount = (str(deposit_amount) + "                                       ").encode("utf8")
-    
+    user = (account+".user                                                     ").encode("utf8")
+    deposit_amount = ("amount: "+str(deposit_amount) + "                                                  ").encode("utf8")
+
     # rest of the function code
 
     with open("bank.auth", 'rb') as f:
@@ -110,10 +110,12 @@ def deposit(ip, port, account, deposit_amount):
 
     cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(key[32:]))
     encryptor = cipher.encryptor()
-
     amount = encryptor.update(deposit_amount)
+    cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(key[32:]))
+    encryptor = cipher.encryptor()
+    seq_number = encryptor.update(("number: " + str(seqNumber) + "                                                                           ").encode("utf8"))
 
-    payload = (str(seqNumber)+"|"+user.decode("latin1") + "|" + amount.decode("latin1")).encode("latin1")
+    payload = (seq_number.decode("latin1")+"|"+user.decode("latin1") + "|" + amount.decode("latin1")).encode("latin1")
     h = hmac.new(key[:32], payload, hashlib.sha3_256).hexdigest()
 
     headers = {

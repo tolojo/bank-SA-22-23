@@ -202,23 +202,33 @@ def deposit():
         decryptor = cipher.decryptor()
         seq_numb = data.split("|")[0].encode("latin1")
         seq_numb = decryptor.update(seq_numb).decode("utf8")
-        verify_seq_number(seq_numb)
+        seq_numb = seq_numb.strip("number: ")
+        print(f"seqNumber:{seq_numb}")
+        verify_seq_number(int(seq_numb))
         conta = data.split("|")[1].encode("latin1")
-        amount = data.split("|")[2].encode("latin1")
-        decrypted_amount = decryptor.update(amount).decode("utf8")
 
-        if not re.match(r'^\d+\.\d{2}$', decrypted_amount):
+        cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(key[32:]))
+        decryptor = cipher.decryptor()
+        amount = data.split("|")[2].encode("latin1")
+        decrypted_amount = decryptor.update(amount)
+        print(decrypted_amount)
+        decrypted_amount = decrypted_amount.split(b': ')[1].decode("utf8")
+        print(decrypted_amount)
+
+        if not re.match(r'^\d+\.\d{2}$', decrypted_amount): #erro aqui <----------------
             sys.exit(125)
 
         cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(iv))
         decryptor = cipher.decryptor()
         decrypted_conta = decryptor.update(conta).decode("utf8")
+        print("cheguei aqui")
         for clientAux in clients:
             if clientAux.conta == decrypted_conta.strip(" "):
                 clientAux.deposit(decrypted_amount)
+                global seqNumb
+                seqNumb += 1
                 return "Deposit successful", 200
         return "Not found", 404
-
 # Create virtual card
 @app.route('/account/createCard/<conta_id>', methods=['POST'])
 def regCard(conta_id):
@@ -279,11 +289,11 @@ def buy_product():
     if (h == request.headers.get("Authorization")):
         data = request.get_data()
         data = data.decode("latin1")
-        seqNumb = data.split("|")[0].encode("latin1")
-        seqNumb = bdecryptor.update(seqNumb).decode("utf8")
-        print(seqNumb)
+        seqNumbr = data.split("|")[0].encode("latin1")
+        seqNumbr = bdecryptor.update(seqNumbr).decode("utf8")
+        print(seqNumbr)
 
-        verify_seq_number(int(seqNumb.strip("number: ")))
+        verify_seq_number(int(seqNumbr.strip("number: ")))
         account = data.split("|")[1].encode("latin1")
         cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(key[32:]))
         decryptor = cipher.decryptor()
@@ -303,6 +313,8 @@ def buy_product():
                 print(account)
                 if account == user:
                     if clientAux.buy_product(float(decrypted_amount.strip("amount: "))):
+                        global seqNumb
+                        seqNumb += 1
                         return "Purchase successful", 200
                 else:
                     return "Insufficient balance in virtual card", 400
