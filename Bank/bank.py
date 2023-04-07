@@ -18,6 +18,8 @@ clients = []
 
 filename_regex = re.compile(r'^[_\-\.0-9a-z]{1,127}$')
 account_name_regex = re.compile(r'^[_\-\.0-9a-z]{1,122}$')
+seqNumb = 0
+vccSeqNumb = 0
 
 
 class Client:
@@ -77,7 +79,7 @@ class Client:
 
 
 # This function generates the server keys
-def genServerKeys(filePath): # Generate the server keys
+def genServerKeys(filePath):  # Generate the server keys
     key = os.urandom(32)  # key de 256 bits
     print(key)
     iv = os.urandom(16)  # IV de 128 bits
@@ -85,31 +87,6 @@ def genServerKeys(filePath): # Generate the server keys
     kIv = key + iv
     with open(filePath, 'wb') as f:
         f.write(kIv)
-
-    private_key = rsa.generate_private_key(
-        public_exponent=65537,
-        key_size=2048,
-    )
-
-    public_key = private_key.public_key()
-
-    pem = private_key.private_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PrivateFormat.PKCS8,
-        encryption_algorithm=serialization.NoEncryption()
-    )
-
-    with open("bank_ptk.pem", 'wb') as f:
-        f.write(pem)
-
-    pem = public_key.public_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PublicFormat.SubjectPublicKeyInfo
-    )
-
-    with open("bank_pbk.pem", 'wb') as f:
-        f.write(pem)
-
 
 # This function parses the arguments
 def parse_args():
@@ -133,6 +110,14 @@ def validate_args(args):
 # This function handles the SIGTERM signal
 def signal_handler(sig, frame):
     sys.exit(0)
+
+def verify_seq_number(seq_numb):
+    global seqNumb
+    if seq_numb < seqNumb:
+        sys.exit(125)
+    if seq_numb < seqNumb+3:
+        return True
+
 
 # Routes
 # User Login
@@ -181,19 +166,21 @@ def regUser(): #verificação da existencia de uma conta igual
             print("Conta já existe")
             return "Erro ao criar a conta", 400
 
-    pin = data.split(", ")[1].split(": ")[1].encode("latin1")
-    saldo = float(data.split(", ")[2].split(": ")[1])
+    saldo = float(data.split(", ")[1].split(": ")[1])
 
     if not re.match(account_name_regex, conta):
         sys.exit(125)
+    pin = os.urandom(16)  # Pin de 128 bits, para ser usado como IV para encriptação de comunicação cliente banco para criar um vcc
     user = {
         "conta": conta,
         "pin": pin,
         "saldo": saldo
     }
     print(user)
+    encryptor = cipher.encryptor()
     clients.append(Client(conta, pin, saldo))
-    return "Cliente criado com sucesso", 200
+    pin = encryptor.update(pin).decode("latin1")
+    return pin, 200
 
 # Deposit
 @app.route('/account/deposit', methods=['POST'])
@@ -213,9 +200,11 @@ def deposit():
         data = data.decode("latin1")
         cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(key[32:]))
         decryptor = cipher.decryptor()
-
-        conta = data.split("|")[0].encode("latin1")
-        amount = data.split("|")[1].encode("latin1")
+        seq_numb = data.split("|")[0].encode("latin1")
+        seq_numb = decryptor.update(seq_numb).decode("utf8")
+        verify_seq_number(seq_numb)
+        conta = data.split("|")[1].encode("latin1")
+        amount = data.split("|")[2].encode("latin1")
         decrypted_amount = decryptor.update(amount).decode("utf8")
 
         if not re.match(r'^\d+\.\d{2}$', decrypted_amount):
@@ -242,6 +231,8 @@ def regCard(conta_id):
     for clientAux in clients:
         if clientAux.conta == conta_id+".user":
             iv = clientAux.pin
+            if clientAux.get_vcard_pin() != 0:
+                return "Failed", 400
     cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(iv))
     decryptor = cipher.decryptor()
     data = decryptor.update(data).decode("utf8")
@@ -250,7 +241,7 @@ def regCard(conta_id):
     data = eval(data)
     conta = data.get("account")
     amount = data.get("vcc")
-    vcc_pin = data.get("vcc_pin").encode("latin1")
+    vcc_pin = os.urandom(16)  # IV de 128 bits
     print(data)
     
     if not re.match(r'^\d+\.\d{2}$', amount):
@@ -260,7 +251,16 @@ def regCard(conta_id):
         if clientAux.conta == conta:
             vCard = clientAux.create_vcard(amount, vcc_pin)
             if vCard:
-                return jsonify({"vCard": vCard.hex()}), 200
+                encryptor = cipher.encryptor()
+                vcc_pin = encryptor.update(vcc_pin).decode("latin1")
+                global vccSeqNumb
+                vccSeqNumb = vccSeqNumb+1
+                #vcc_seq_numb = encryptor.update(("seq:"+str(vccSeqNumb)+"                                ").encode("utf8")).decode("latin1")
+                vcc_seq_numb = vccSeqNumb
+                headers = {
+                    "VCC_SEQ_NUMB": f"{vcc_seq_numb}",
+                }
+                return vcc_pin, 200, headers
             else:
                 return "Insufficient balance", 400
     return "Not found", 404
@@ -274,46 +274,54 @@ def buy_product():
     cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(key[32:]))
     bdecryptor = cipher.decryptor()
 
-    data = request.get_data()
-    data = data.decode("latin1")
-    account = data.split("|")[0].encode("latin1")
-    amount = data.split("|")[1].encode("latin1")
-    amount = float(bdecryptor.update(amount).decode("utf8"))
-    print(amount)
-    headers = request.headers
-    user = headers.get("User")
+    data = request.data
+    h = hmac.new(key[:32], data, hashlib.sha3_256).hexdigest()
+    if (h == request.headers.get("Authorization")):
+        data = request.get_data()
+        data = data.decode("latin1")
+        seqNumb = data.split("|")[0].encode("latin1")
+        seqNumb = bdecryptor.update(seqNumb).decode("utf8")
+        print(seqNumb)
 
-    for clientAux in clients:
-        if clientAux.conta == user:
-            iv = clientAux.get_vcard_pin()
-            cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(iv))
-            adecryptor = cipher.decryptor()
-            account = adecryptor.update(account).decode("utf8")
-            account = account.split("_")[0].split(": ")[1]+".user"
-            print(account)
-            if account == user:
-                if clientAux.buy_product(amount):
-                    return "Purchase successful", 200
-            else:
-                return "Insufficient balance in virtual card", 400
-    return "Not found", 404
+        verify_seq_number(int(seqNumb.strip("number: ")))
+        account = data.split("|")[1].encode("latin1")
+        cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(key[32:]))
+        decryptor = cipher.decryptor()
+        amount = data.split("|")[2].encode("latin1")
+        decrypted_amount = decryptor.update(amount).decode("utf8")
+        print(decrypted_amount.split(":")[1])
+        headers = request.headers
+        user = headers.get("User")
 
-@app.route('/serverPK', methods=['GET'])
-def get_server_pbk():
+        for clientAux in clients:
+            if clientAux.conta == user:
+                iv = clientAux.get_vcard_pin()
+                cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(iv))
+                adecryptor = cipher.decryptor()
+                account = adecryptor.update(account).decode("utf8")
+                account = account.split("_")[0].split(": ")[1]+".user"
+                print(account)
+                if account == user:
+                    if clientAux.buy_product(float(decrypted_amount.strip("amount: "))):
+                        return "Purchase successful", 200
+                else:
+                    return "Insufficient balance in virtual card", 400
+        return "Not found", 404
+
+
+@app.route('/seqnumb', methods=['GET'])
+def getSeqNumber():
+    global seqNumb
+    seq_numb = seqNumb
+    print(seq_numb)
     with open("bank.auth", 'rb') as f:
         key = f.read()
 
-    with open("bank_pbk.pem", 'rb') as f:
-        pk = f.read()
-
     cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(key[32:]))
     encryptor = cipher.encryptor()
-    pk = encryptor.update(pk)
-    h = hmac.new(key[:32], pk, hashlib.sha3_256).hexdigest()
-    resp = flask.Response()
-    resp.data = pk
-    resp.headers["Authorization"] = h
-    return resp
+    seq_numb = encryptor.update((str(seq_numb)+"                                     ").encode("utf8")).decode("latin1")
+
+    return seq_numb, 200
 
 if __name__ == "__main__":
     args = parse_args()

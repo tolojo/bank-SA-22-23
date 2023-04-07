@@ -47,11 +47,10 @@ def buy_product():
         cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(key[32:]))
         decryptor = cipher.decryptor()
 
-        amount = data.split("|")[1].encode("latin1")
+        amount = data.split("|")[2].encode("latin1")
         decrypted_amount = decryptor.update(amount).decode("utf8")
 
         print(decrypted_amount) #Apenas faz sentido para a loja saber o que está a ser transacionado
-        print("data: "+data)
         requestBank = requests.post(url=f"http://127.0.0.1:3000/buyproduct", headers=request.headers, data=data, timeout=10)
 
         if(requestBank.status_code==200):

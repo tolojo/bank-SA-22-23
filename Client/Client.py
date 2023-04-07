@@ -11,9 +11,9 @@ from flask import request
 import requests
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives.ciphers.algorithms import AES
-global seqNumber
-seqNumber = 0
 
+seqNumber = 0
+vccSecNumb = 0
 filename_regex = re.compile(r'^[_\-\.0-9a-z]{1,127}$')
 decimal_regex = re.compile(r'^(0|[1-9][0-9]*)$')
 float_regex = re.compile(r'^\d{1,10}\.\d{2}$')
@@ -23,7 +23,7 @@ python3 Client.py -s bank.auth -u 55555.user -a 55555 -n 1000.00
 python3 Client.py -s bank.auth -u 55555.user -a 55555 -c 63.10  
 python3 Client.py -a 55555_0.card -m 45.10 
 """
-
+seqNumber = 0
 def parse_args():
     parser = argparse.ArgumentParser(description='Client')
     parser.add_argument('-i', metavar='bk-ip', type=str, default='127.0.0.1',  help='The IP that the client will search the bank. default is localhost')
@@ -88,6 +88,7 @@ def get_account_balance(ip, port, account):
 
 
 def deposit(ip, port, account, deposit_amount):
+    global seqNumber
     if not re.match(r'^\d+\.\d{2}$', str(deposit_amount)):
         sys.exit(125) # invalid input amount format
     if not re.match(r'^[_\-\.0-9a-z]{1,127}$', account):
@@ -112,7 +113,7 @@ def deposit(ip, port, account, deposit_amount):
 
     amount = encryptor.update(deposit_amount)
 
-    payload = (user.decode("latin1") + "|" + amount.decode("latin1")).encode("latin1")
+    payload = (str(seqNumber)+"|"+user.decode("latin1") + "|" + amount.decode("latin1")).encode("latin1")
     h = hmac.new(key[:32], payload, hashlib.sha3_256).hexdigest()
 
     headers = {
@@ -134,8 +135,10 @@ def deposit(ip, port, account, deposit_amount):
         sys.exit(135)
 
 def buy_product(account, amount_used):
+    #ver, não está a funcionar
+    global seqNumber
     user = "account: "+account
-    amount_used = (str(amount_used)+"                       ").encode("utf8")
+    amount_used = ("amount: "+str(amount_used)+"                                    ").encode("utf8")
 
     with open("bank.auth", 'rb') as f:
         key = f.read()
@@ -146,11 +149,16 @@ def buy_product(account, amount_used):
     encryptor = cipher.encryptor()
     user = encryptor.update(user.encode("utf8"))
 
+
     cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(key[32:]))
     encryptor = cipher.encryptor()
-
+    seq_number = encryptor.update(("number: "+str(seqNumber)+"                                                                   ").encode("utf8"))
+    print(seq_number.decode("latin1"))
+    cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(key[32:]))
+    encryptor = cipher.encryptor()
     amount = encryptor.update(amount_used)
-    payload = (user.decode("latin1")+"|"+amount.decode("latin1")).encode("latin1")
+
+    payload = (seq_number.decode("latin1") +"|"+user.decode("latin1")+"|"+amount.decode("latin1")).encode("latin1")
     # Encrypt account with vcc iv and amount with .auth iv
     h =  hmac.new(key[:32],payload,hashlib.sha3_256).hexdigest()
     account=account+"                                            "
@@ -175,18 +183,17 @@ def buy_product(account, amount_used):
 
 def create_vcc(ip, port, account, vcc_amount):
     if not re.match(r'^[_\-\.0-9a-z]{1,122}$', account):
-        sys.exit(125) # invalid account name format
+        sys.exit(125)  # invalid account name format
     if not re.match(r'^\d+\.\d{2}$', str(vcc_amount)):
-        sys.exit(125) # invalid input amount format
+        sys.exit(125)  # invalid input amount format
 
-    global seqNumber
-    vcc_pin = os.urandom(16)  # IV de 128 bits
     user = account+".user"
-    payload = '{"account": "'+user+'","vcc_pin":"'+vcc_pin.decode('latin1')+'", "vcc": "'+str(vcc_amount)+'"}                  '
+    payload = '{"account": "'+user+'","vcc": "'+str(vcc_amount)+'"}                  '
     with open("bank.auth", 'rb') as f:
         key = f.read()
     with open(account+".user", 'rb') as f:
         iv = f.read()
+
     cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(iv))
     encryptor = cipher.encryptor()
     data = encryptor.update(payload.encode('utf8'))
@@ -199,20 +206,30 @@ def create_vcc(ip, port, account, vcc_amount):
     except requests.exceptions.RequestException:
         sys.exit(63)
     if response.status_code == 200:
-        with open(account+"_"+str(seqNumber)+".card", 'wb') as f:
+
+        decryptor = cipher.decryptor()
+        vcc_pin = decryptor.update(response.text.encode("latin1"))
+        """
+        vcc_seq_number = response.headers.get("VCC_SEQ_NUMB")
+        vcc_seq_number = decryptor.update(vcc_seq_number.encode("latin1")).decode("utf8").strip(" ").strip("seq:")
+        """
+        vcc_seq_number = response.headers.get("VCC_SEQ_NUMB")
+        with open(account+"_"+str(vcc_seq_number)+".card", 'wb') as f:
             f.write(vcc_pin)
+        global vccSecNumb
+        vccSecNumb = vcc_seq_number
         print(payload)
-        seqNumber+=1
+
 
     else:
         sys.exit(135) # invalid account name or vcc amount
 
 if __name__ == "__main__":
+
     args = parse_args()
-    
+
     if ' '.join(sys.argv[1:]).replace(' ', '').__len__() > 4096:
         sys.exit(130)
-
     valid, error_code = validate_args(args)
     if not valid:
         sys.exit(error_code)
@@ -233,27 +250,35 @@ if __name__ == "__main__":
 
         if not re.match(filename_regex, args.u):
             sys.exit(130)
-
-        pin = os.urandom(16)  # Pin de 128 bits, para ser usado como IV para encriptação de comunicação cliente banco para criar um vcc
-        data = "conta: "+str(args.u)+", pin: "+pin.decode("latin1")+", saldo: "+str(args.n) + "                                     "
-        print(data)
+        data = "conta: "+str(args.u)+", saldo: "+str(args.n) + "                                     "
         key = ""
         with open("bank.auth", 'rb') as f:
             key = f.read()
         cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(key[32:]))
         encryptor = cipher.encryptor()
         ct = encryptor.update(data.encode("utf8"))
+        decryptor = cipher.decryptor()
 
         try:
             response = requests.post(url=f"http://{args.i}:{args.p}/account", data=ct, timeout=10)
+            print(response.status_code)
+
+            if response.status_code == 400:
+                sys.exit(130)
+
+            pin = decryptor.update(response.text.encode("latin1"))
             response.raise_for_status()
+
         except requests.exceptions.Timeout:
             sys.exit(63)
+
         except requests.exceptions.RequestException:
             sys.exit(63)
+
         if response.status_code == 200:
             with open(args.u, 'wb') as f:
                 f.write(pin)
+
 
     if args.g is not None:
         if not re.match(decimal_regex, str(args.g)):
@@ -262,12 +287,26 @@ if __name__ == "__main__":
         get_account_balance(args.i, args.p, args.g)
 
     if args.d is not None and args.a is not None:
+        response = requests.get(url=f"http://{args.i}:{args.p}/seqnumb", timeout=10)
+        with open("bank.auth", 'rb') as f:
+            key = f.read()
+        cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(key[32:]))
+        decryptor = cipher.decryptor()
+
+        seqNumber = int(decryptor.update(response.text.encode("latin1")).decode("utf8"))
         if not re.match(float_regex, args.d):
             sys.exit(130)
 
         deposit(args.i, args.p, args.a, args.d)
 
     if args.c is not None and args.a is not None:
+        response = requests.get(url=f"http://{args.i}:{args.p}/seqnumb", timeout=10)
+        with open("bank.auth", 'rb') as f:
+            key = f.read()
+        cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(key[32:]))
+        decryptor = cipher.decryptor()
+
+        seqNumber = int(decryptor.update(response.text.encode("latin1")).decode("utf8"))
         if not re.match(r'^[_.\-a-zA-Z0-9]{1,122}$', args.a):
             sys.exit(130)
 
@@ -277,6 +316,13 @@ if __name__ == "__main__":
         create_vcc(args.i, args.p, args.a, args.c)
 
     if args.m is not None and args.a is not None:
+        response = requests.get(url=f"http://{args.i}:{args.p}/seqnumb", timeout=10)
+        with open("bank.auth", 'rb') as f:
+            key = f.read()
+        cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(key[32:]))
+        decryptor = cipher.decryptor()
+
+        seqNumber = int(decryptor.update(response.text.encode("latin1")).decode("utf8"))
         if not re.match(float_regex, args.m):
             sys.exit(130)
 
