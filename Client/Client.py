@@ -95,7 +95,7 @@ def deposit(ip, port, account, deposit_amount):
         sys.exit(125) # invalid account name format
 
     user = (account+".user                                                     ").encode("utf8")
-    deposit_amount = ("amount: "+str(deposit_amount) + "                                                  ").encode("utf8")
+    deposit_amount = ("amount: "+str(deposit_amount) + "                                                                         ").encode("utf8")
 
     # rest of the function code
 

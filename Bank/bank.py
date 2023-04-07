@@ -214,10 +214,10 @@ def deposit():
         print(decrypted_amount)
         decrypted_amount = decrypted_amount.split(b': ')[1].decode("utf8")
         print(decrypted_amount)
-
+        """
         if not re.match(r'^\d+\.\d{2}$', decrypted_amount): #erro aqui <----------------
             sys.exit(125)
-
+        """
         cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(iv))
         decryptor = cipher.decryptor()
         decrypted_conta = decryptor.update(conta).decode("utf8")
