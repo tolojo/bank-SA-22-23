@@ -212,16 +212,15 @@ def deposit():
         amount = data.split("|")[2].encode("latin1")
         decrypted_amount = decryptor.update(amount)
         print(decrypted_amount)
-        decrypted_amount = decrypted_amount.split(b': ')[1].decode("utf8")
+        decrypted_amount = decrypted_amount.split(b': ')[1].decode("utf8").strip(" ")
         print(decrypted_amount)
-        """
-        if not re.match(r'^\d+\.\d{2}$', decrypted_amount): #erro aqui <----------------
+
+        if not re.match(r'^\d+\.\d{2}$', str(decrypted_amount)):
             sys.exit(125)
-        """
+
         cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(iv))
         decryptor = cipher.decryptor()
         decrypted_conta = decryptor.update(conta).decode("utf8")
-        print("cheguei aqui")
         for clientAux in clients:
             if clientAux.conta == decrypted_conta.strip(" "):
                 clientAux.deposit(decrypted_amount)
@@ -289,20 +288,20 @@ def buy_product():
     if (h == request.headers.get("Authorization")):
         data = request.get_data()
         data = data.decode("latin1")
-        seqNumbr = data.split("|")[0].encode("latin1")
+        seqNumbr = data.split(" |")[0].encode("latin1")
         seqNumbr = bdecryptor.update(seqNumbr).decode("utf8")
         print(seqNumbr)
 
         verify_seq_number(int(seqNumbr.strip("number: ")))
-        account = data.split("|")[1].encode("latin1")
+        account = data.split(" |")[1].encode("latin1")
         cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(key[32:]))
         decryptor = cipher.decryptor()
-        amount = data.split("|")[2].encode("latin1")
+        amount = data.split(" |")[2].encode("latin1")
         decrypted_amount = decryptor.update(amount).decode("utf8")
         print(decrypted_amount.split(":")[1])
         headers = request.headers
+        print(headers)
         user = headers.get("User")
-
         for clientAux in clients:
             if clientAux.conta == user:
                 iv = clientAux.get_vcard_pin()

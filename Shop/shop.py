@@ -47,7 +47,7 @@ def buy_product():
         cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(key[32:]))
         decryptor = cipher.decryptor()
 
-        amount = data.split("|")[2].encode("latin1")
+        amount = data.split(" |")[2].encode("latin1")
         decrypted_amount = decryptor.update(amount).decode("utf8")
 
         print(decrypted_amount) #Apenas faz sentido para a loja saber o que está a ser transacionado

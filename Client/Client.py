@@ -160,7 +160,7 @@ def buy_product(account, amount_used):
     encryptor = cipher.encryptor()
     amount = encryptor.update(amount_used)
 
-    payload = (seq_number.decode("latin1") +"|"+user.decode("latin1")+"|"+amount.decode("latin1")).encode("latin1")
+    payload = (seq_number.decode("latin1") +" |"+user.decode("latin1")+" |"+amount.decode("latin1")).encode("latin1")
     # Encrypt account with vcc iv and amount with .auth iv
     h =  hmac.new(key[:32],payload,hashlib.sha3_256).hexdigest()
     account=account+"                                            "
