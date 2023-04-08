@@ -42,7 +42,6 @@ def buy_product():
     h = hmac.new(key[:32], data, hashlib.sha3_256).hexdigest()
 
     if(h == request.headers.get("Authorization")):
-        #falta fazer verificação do hmac no buy product do bank
         data=data.decode("latin1")
         cipher = Cipher(algorithms.AES(key[:32]), modes.CBC(key[32:]))
         decryptor = cipher.decryptor()
@@ -50,7 +49,7 @@ def buy_product():
         amount = data.split(" |")[2].encode("latin1")
         decrypted_amount = decryptor.update(amount).decode("utf8")
 
-        print(decrypted_amount) #Apenas faz sentido para a loja saber o que está a ser transacionado
+        print(decrypted_amount)
         requestBank = requests.post(url=f"http://127.0.0.1:3000/buyproduct", headers=request.headers, data=data, timeout=10)
 
         if(requestBank.status_code==200):

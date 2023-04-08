@@ -90,14 +90,13 @@ def get_account_balance(ip, port, account):
 def deposit(ip, port, account, deposit_amount):
     global seqNumber
     if not re.match(r'^\d+\.\d{2}$', str(deposit_amount)):
-        sys.exit(125) # invalid input amount format
+        sys.exit(125)
     if not re.match(r'^[_\-\.0-9a-z]{1,127}$', account):
-        sys.exit(125) # invalid account name format
+        sys.exit(125)
 
     user = (account+".user                                                     ").encode("utf8")
     deposit_amount = ("amount: "+str(deposit_amount) + "                                                                         ").encode("utf8")
 
-    # rest of the function code
 
     with open("bank.auth", 'rb') as f:
         key = f.read()
@@ -137,7 +136,6 @@ def deposit(ip, port, account, deposit_amount):
         sys.exit(135)
 
 def buy_product(account, amount_used):
-    #ver, não está a funcionar
     global seqNumber
     user = "account: "+account
     amount_used = ("amount: "+str(amount_used)+"                                    ").encode("utf8")
@@ -161,7 +159,6 @@ def buy_product(account, amount_used):
     amount = encryptor.update(amount_used)
 
     payload = (seq_number.decode("latin1") +" |"+user.decode("latin1")+" |"+amount.decode("latin1")).encode("latin1")
-    # Encrypt account with vcc iv and amount with .auth iv
     h =  hmac.new(key[:32],payload,hashlib.sha3_256).hexdigest()
     account=account+"                                            "
     user = account.split("_")[0]
@@ -185,9 +182,9 @@ def buy_product(account, amount_used):
 
 def create_vcc(ip, port, account, vcc_amount):
     if not re.match(r'^[_\-\.0-9a-z]{1,122}$', account):
-        sys.exit(125)  # invalid account name format
+        sys.exit(125)
     if not re.match(r'^\d+\.\d{2}$', str(vcc_amount)):
-        sys.exit(125)  # invalid input amount format
+        sys.exit(125)
 
     user = account+".user"
     payload = '{"account": "'+user+'","vcc": "'+str(vcc_amount)+'"}                  '
@@ -224,7 +221,7 @@ def create_vcc(ip, port, account, vcc_amount):
 
 
     else:
-        sys.exit(135) # invalid account name or vcc amount
+        sys.exit(135)
 
 if __name__ == "__main__":
 

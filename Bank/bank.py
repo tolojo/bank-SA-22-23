@@ -150,7 +150,7 @@ def getUser(conta):
 
 # User Register
 @app.route('/account', methods=['POST'])
-def regUser(): #verificação da existencia de uma conta igual
+def regUser():
     data = request.data
 
     with open("bank.auth", 'rb') as f:
@@ -170,7 +170,7 @@ def regUser(): #verificação da existencia de uma conta igual
 
     if not re.match(account_name_regex, conta):
         sys.exit(125)
-    pin = os.urandom(16)  # Pin de 128 bits, para ser usado como IV para encriptação de comunicação cliente banco para criar um vcc
+    pin = os.urandom(16)
     user = {
         "conta": conta,
         "pin": pin,
@@ -250,7 +250,7 @@ def regCard(conta_id):
     data = eval(data)
     conta = data.get("account")
     amount = data.get("vcc")
-    vcc_pin = os.urandom(16)  # IV de 128 bits
+    vcc_pin = os.urandom(16)
     print(data)
     
     if not re.match(r'^\d+\.\d{2}$', amount):
