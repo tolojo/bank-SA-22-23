@@ -31,4 +31,5 @@ No diretório do projeto:
 cd Shop
 python3 shop.py
 ```
-E verificar se o ficheiro de autenticação do banco existe e se encontra presente no diretório atual
+
+Nota: Verificar se o ficheiro de autenticação do banco existe e se encontra presente no diretório atual
