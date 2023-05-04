@@ -29,8 +29,7 @@ if __name__ == "__main__":
     server_socket.bind(('127.0.0.1', args.p))
     server_socket.listen()
     client_socket, _ = server_socket.accept() #MBEC socket
-    cli_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # Bank socket
-    cli_sock.connect((args.s, args.q))
+
     # try:
     while True:
         try:
@@ -45,8 +44,16 @@ if __name__ == "__main__":
             if val == "D":
                 continue
             if val == "F":
+                cli_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # Bank socket
+                cli_sock.connect((args.s, args.q))
+                # falta escrever a mensagem para o bank
+
                 continue
             if val == "M":
+                cli_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # Bank socket
+                cli_sock.connect((args.s, args.q))
+                # falta modificar a mensagem
+
                 continue
         except:
             print("boooo")
