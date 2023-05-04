@@ -27,18 +27,27 @@ if __name__ == "__main__":
     args = parse_args()
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.bind(('127.0.0.1', args.p))
-    server_socket.settimeout(10)
     server_socket.listen()
     client_socket, _ = server_socket.accept() #MBEC socket
+    cli_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # Bank socket
+    cli_sock.connect((args.s, args.q))
     # try:
     while True:
         try:
-            # create a socket object and connect
-            cli_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM) #Bank socket
-            cli_sock.connect((args.s, args.q))
-
+            client_socket, _ = server_socket.accept()  # MBEC socket
             data = client_socket.recv(1024)
             print("i have data")
+            print(data)
+            val = input("\n What do you want to do?"
+                  "\n (D)rop"
+                  "\n (F)orward"
+                  "\n (M)odify")
+            if val == "D":
+                continue
+            if val == "F":
+                continue
+            if val == "M":
+                continue
         except:
             print("boooo")
 
