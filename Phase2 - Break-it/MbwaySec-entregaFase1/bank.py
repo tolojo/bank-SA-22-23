@@ -370,7 +370,7 @@ class BankServer:
     
     def run(self):
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server_socket.bind(('127.0.0.1', self.port))
+        server_socket.bind(('127.0.0.1', 4000))
         server_socket.settimeout(10)
         server_socket.listen()
         signal.signal(signal.SIGTERM, self.cleanup)
@@ -387,7 +387,7 @@ class BankServer:
                 self.get_cli_pubkey(client_socket)
                 #self.cli_pubkey = serialization.load_pem_public_key(client_socket.recv(1024))
 
-                auth_successful = self.handle_auth(client_socket,client_socket.recv(1014))
+                auth_successful = self.handle_auth(client_socket,client_socket.recv(1024))
 
                 if auth_successful == True:
 
@@ -426,7 +426,7 @@ class BankServer:
 
 if __name__ == "__main__":
 
-    try :
+
 
         check = Checker()
 
@@ -436,8 +436,7 @@ if __name__ == "__main__":
         bank_server.run()
         bank_server.cleanup()
 
-    except :
-        sys.exit(125)
 
-    sys.exit(0)
+
+        sys.exit(0)
 

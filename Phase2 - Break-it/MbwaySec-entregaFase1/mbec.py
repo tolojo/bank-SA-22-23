@@ -268,7 +268,7 @@ def main():
 
         #create a socket object and connect
         cli_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        cli_sock.connect((dest_ip, dest_port))
+        cli_sock.connect((dest_ip, int(dest_port)))
 
         share_pubkey(cli_sock,initial_key)
 
