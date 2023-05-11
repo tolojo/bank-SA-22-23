@@ -99,7 +99,7 @@ class BankServer:
             return
 
     def handle_transaction(self, client_socket, req):
-        
+        print("entrei no handle transac")
         # Requests do mbec
         op = req["op"]
         account = req["account"] if op != "vccreq" else None
@@ -391,6 +391,7 @@ class BankServer:
 
                 if auth_successful == True:
 
+
                     self.established = 1
 
                     #check this because of loop - try to read forever
@@ -435,8 +436,5 @@ if __name__ == "__main__":
         bank_server = BankServer(port, auth_file)
         bank_server.run()
         bank_server.cleanup()
-
-
-
         sys.exit(0)
 

