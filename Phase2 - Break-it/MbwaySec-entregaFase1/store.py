@@ -294,7 +294,7 @@ class StoreServer:
                 client_socket, _ = server_socket.accept()
                 
                 bank_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                bank_socket.connect(('127.0.0.1', 3000))
+                bank_socket.connect(('127.0.0.1', 4000))
                 
                 self.share_pubkey(bank_socket)
             
@@ -332,16 +332,14 @@ class StoreServer:
 
 if __name__ == '__main__':
 
-    try :
 
-        check = Checker()
+
+    check = Checker()
         
-        port,auth_file = check.check_args(sys.argv,1)
+    port,auth_file = check.check_args(sys.argv,1)
 
-        store_server = StoreServer(port,auth_file)
-        store_server.run_server()
+    store_server = StoreServer(port,auth_file)
+    store_server.run_server()
 
-    except :
-        sys.exit(135)
     
     sys.exit(0)

@@ -210,7 +210,7 @@ class BankServer:
             "pin" : None,
             "rand" : str(random.randint(0,pow(10,50))) #introduce randomness in message
         }
-        
+
         fields = {"op" : op + "post","result" : 1,"sequence" : sequence,"balance" : balance ,"pin" : pin}
             
         for r in res_dict:
@@ -377,7 +377,6 @@ class BankServer:
         
         #try:
         while True:
-            
             try :
                 client_socket, _ = server_socket.accept()
                 client_socket

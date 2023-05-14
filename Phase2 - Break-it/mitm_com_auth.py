@@ -1,7 +1,14 @@
 import argparse
+import hashlib
+import hmac
+import random
+import sys
 from socket import *
 import time
 
+from cryptography.hazmat.primitives import serialization, padding, hashes
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives.serialization import load_pem_public_key
 
 clients = []
 
@@ -17,6 +24,14 @@ def parse_args():
     return parser.parse_args()
 
 def handle_mitm(client_socket, args):
+    private_key = rsa.generate_private_key(
+        public_exponent=65537,
+        key_size=2048
+    )
+
+    public_key = private_key.public_key()
+    # vamos gerar um novo par de chaves publicas e privadas para o mitm
+
     db = 0 # data from bank
     # isto serve para o client
     """
@@ -59,11 +74,37 @@ def handle_mitm(client_socket, args):
     client_socket.send(data9)
     """
     data1 = client_socket.recv(1024)
-    print("Received data from client:")
+    print("Received hmac e pubkey Client from client:")
     print(data1)
+
+
+
+    pem = public_key.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+    with open("bank.auth", 'rb') as f:
+        bytes = f.read()
+    initial_key = bytes[:32]
+    bank_key = load_pem_public_key(bytes[32:])
+    hmac_hash = hmac.new(initial_key, digestmod=hashlib.sha256)
+    hmac_hash.update(pem)
+    establishreq = {
+        'op': 'establishreq',
+        'challenge': str(random.randint(0,pow(10,50)))
+    }
+
+    req = bank_key.encrypt(
+        establishreq,
+        padding.OAEP(
+            mgf=padding.MGF1(algorithm=hashes.SHA256()),
+            algorithm=hashes.SHA256(),
+            label=None
+        ))
+
     bank_sock = socket(AF_INET, SOCK_STREAM)
     bank_sock.connect((args.s, args.q))
-    bank_sock.send(data1)
+    bank_sock.send(hmac_hash.digest() + pem)
     data2 = client_socket.recv(1024)
     print("Received data from client:")
     print(data2)
